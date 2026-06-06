@@ -390,7 +390,17 @@ function initializeSeedData() {
 mockStorage.set('events', new Map());
 mockStorage.set('whiskeys', new Map());
 mockStorage.set('ratings', new Map());
+mockStorage.set('admins', new Map());
 initializeSeedData();
+
+// Seed one mock admin for local development
+const adminId = uuidv4();
+const mockAdmin = {
+  id: adminId,
+  email: 'admin@example.com',
+  createdAt: '2026-06-06T10:00:00Z',
+};
+mockStorage.get('admins')!.set(adminId, mockAdmin);
 
 export function getMockContainer(containerName: string): MockContainer {
   return new MockContainer(containerName);

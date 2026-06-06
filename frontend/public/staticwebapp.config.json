@@ -2,6 +2,17 @@
   "platform": {
     "apiRuntime": "node:18"
   },
+  "auth": {
+    "rolesSource": "/api/GetRoles",
+    "identityProviders": {
+      "google": {
+        "registration": {
+          "clientIdSettingName": "GOOGLE_CLIENT_ID",
+          "clientSecretSettingName": "GOOGLE_CLIENT_SECRET"
+        }
+      }
+    }
+  },
   "routes": [
     {
       "route": "/api/*",

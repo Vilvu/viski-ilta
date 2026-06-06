@@ -147,6 +147,14 @@ az cosmosdb sql container create \
   --database-name whiskyapp \
   --name ratings \
   --partition-key-path "/whiskeyId"
+
+# Admins container — partition key: /email (for role-based access control)
+az cosmosdb sql container create \
+  --account-name cosmos-whiskyapp \
+  --resource-group rg-whiskyapp \
+  --database-name whiskyapp \
+  --name admins \
+  --partition-key-path "/email"
 ```
 
 #### Retrieve connection credentials
@@ -214,17 +222,19 @@ az staticwebapp create \
 
 ### 2.4 Configure Application Settings
 
-Set the Cosmos DB credentials as application settings for the Azure Functions managed by SWA:
+Set the Cosmos DB credentials and Google OAuth credentials as application settings for the Azure Functions managed by SWA:
 
 ```bash
-# Set Cosmos DB endpoint
+# Set Cosmos DB endpoint and Google OAuth credentials
 az staticwebapp appsettings set \
   --name swa-whiskyapp \
   --resource-group rg-whiskyapp \
   --setting-names \
     COSMOS_ENDPOINT=https://cosmos-whiskyapp.documents.azure.com:443/ \
     COSMOS_KEY=your-cosmos-primary-key \
-    COSMOS_DATABASE=whiskyapp
+    COSMOS_DATABASE=whiskyapp \
+    GOOGLE_CLIENT_ID=your-google-client-id \
+    GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 > **Security Note**: Application settings are encrypted at rest and injected as environment variables into the Azure Functions runtime. They are not exposed to the frontend.
@@ -283,21 +293,41 @@ az staticwebapp appsettings set \
 
 ## 4. Azure Static Web Apps Auth Configuration
 
-### 4.1 Configure Google as Identity Provider
+### 4.1 Custom Authentication with Google
 
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to your Static Web App resource (`swa-whiskyapp`)
-3. In the left menu, click **Settings** → **Authentication**
-4. Under **Identity providers**, click **Add provider**
-5. Select **Google**
-6. Enter:
-   - **Client ID**: The OAuth Client ID from Google Cloud Console
-   - **Client Secret**: The OAuth Client Secret from Google Cloud Console
-7. Click **Add**
+Because the Azure portal requires a role assignments API for custom identity providers, the application uses custom authentication configuration via `staticwebapp.config.json`. This replaces the portal UI-based Google provider setup.
+
+The `staticwebapp.config.json` file includes:
+
+```json
+{
+  "auth": {
+    "rolesSource": "/api/GetRoles",
+    "identityProviders": {
+      "google": {
+        "registration": {
+          "clientIdSettingName": "GOOGLE_CLIENT_ID",
+          "clientSecretSettingName": "GOOGLE_CLIENT_SECRET"
+        }
+      }
+    }
+  }
+}
+```
+
+**Steps to configure:**
+
+1. In the Azure Portal, go to your Static Web App → **Authentication**
+2. Click **Add provider** → **Google**
+3. Enter the **Client ID** and **Client Secret** from Google Cloud Console
+4. In the **Role assignments API path** field, enter: `/api/GetRoles`
+5. Click **Add**
+
+The `/api/GetRoles` function (in `api/src/functions/getRoles.ts`) will be called by SWA after each successful login to determine the user's roles.
 
 ### 4.2 Verify Auth Configuration
 
-The application's `staticwebapp.config.json` already configures the auth routes:
+The application's `staticwebapp.config.json` configures the auth routes:
 
 - **Login**: `/.auth/login/google` — redirects to Google OAuth
 - **Logout**: `/.auth/logout` — clears the session
@@ -311,12 +341,15 @@ sequenceDiagram
     participant U as User
     participant SWA as Azure Static Web Apps
     participant G as Google OAuth
+    participant F as GetRoles Function
 
     U->>SWA: Click Sign In
     SWA->>G: Redirect to Google login
     G-->>U: Google consent screen
     U->>G: Approve access
     G-->>SWA: Auth code callback
+    SWA->>F: POST /api/GetRoles with user claims
+    F-->>SWA: { "roles": ["authenticated", "admin"] } or { "roles": ["authenticated"] }
     SWA-->>U: Set auth cookie and redirect to app
     Note over U,SWA: Subsequent requests include auth cookie
     U->>SWA: GET /.auth/me
@@ -327,21 +360,23 @@ sequenceDiagram
 
 ## 5. Admin Role Assignment
 
-Azure Static Web Apps uses a role-based access control system. All authenticated users automatically receive the `authenticated` role. The `admin` role must be explicitly assigned.
+Azure Static Web Apps uses a role-based access control system. All authenticated users automatically receive the `authenticated` role. The `admin` role is assigned programmatically via the `/api/GetRoles` function by checking the user's Google email against the `admins` Cosmos DB container.
 
-### 5.1 Invite Users as Admin
+### 5.1 Add Admin Users
 
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to your Static Web App resource (`swa-whiskyapp`)
-3. In the left menu, click **Settings** → **Role management**
-4. Click **Invite**
-5. Fill in:
-   - **Identity provider**: Google
-   - **Invitee email**: The Google email address of the admin user
-   - **Role**: `admin`
-   - **Invitation expiry**: Set an appropriate expiry (e.g., 8 hours)
-6. Click **Generate invitation link**
-7. Send the invitation link to the user — they must click it while signed in with their Google account to accept the role
+To grant admin access, add the user's Google email to the `admins` container in Cosmos DB:
+
+1. Open the Azure Portal → Cosmos DB account → **Data Explorer**
+2. Navigate to the `whiskyapp` database → `admins` container
+3. Click **New Item** and add a document:
+   ```json
+   {
+     "id": "unique-uuid-here",
+     "email": "user@gmail.com",
+     "createdAt": "2026-06-06T10:00:00Z"
+   }
+   ```
+4. Replace `unique-uuid-here` with a UUID and `user@gmail.com` with the admin's Google email.
 
 ### 5.2 Role Hierarchy
 
@@ -349,16 +384,16 @@ Azure Static Web Apps uses a role-based access control system. All authenticated
 |------|-------------|--------------|
 | `anonymous` | Read-only — browse events and whiskeys | Automatic for all visitors |
 | `authenticated` | Rate whiskeys — create, update, delete own ratings | Automatic upon Google sign-in |
-| `admin` | Full access — manage events and whiskeys | Manual invitation via Azure Portal |
+| `admin` | Full access — manage events and whiskeys | Email added to Cosmos DB `admins` container |
 
 ### 5.3 Verify Role Assignment
 
-After a user accepts the admin invitation, they can verify their roles by visiting:
+After logging in, users can verify their roles by visiting:
 ```
 https://<your-swa-domain>/.auth/me
 ```
 
-The response will include `userRoles` containing both `authenticated` and `admin`.
+The response will include `userRoles` containing `authenticated` and, if the email is in the `admins` container, `admin`.
 
 ---
 
@@ -915,13 +950,14 @@ Use this checklist to track your deployment progress:
 - [ ] Resource group `rg-whiskyapp` created
 - [ ] Cosmos DB account created (serverless)
 - [ ] Database `whiskyapp` created
-- [ ] Containers created: `events`, `whiskeys`, `ratings`
+- [ ] Containers created: `events`, `whiskeys`, `ratings`, `admins`
 - [ ] Cosmos DB endpoint and key retrieved
 - [ ] Google Cloud project created
 - [ ] OAuth consent screen configured
 - [ ] OAuth 2.0 credentials created (Client ID + Secret)
 - [ ] Azure Static Web App created and linked to GitHub
-- [ ] Google auth provider configured in SWA
+- [ ] Google auth provider configured in SWA with `/api/GetRoles` as role assignments API
+- [ ] Admin emails added to Cosmos DB `admins` container
 - [ ] SWA application settings configured (Cosmos DB credentials)
 - [ ] GitHub secrets configured
 - [ ] First deployment triggered (push to main)
