@@ -3,14 +3,17 @@ param swaLocation string
 param repositoryUrl string
 param repositoryBranch string
 param cosmosEndpoint string
-param cosmosKey string {
-  secure: true
-}
+@secure()
+param cosmosKey string
 param cosmosDatabase string
 
 resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
   location: swaLocation
+  sku: {
+    name: 'Free'
+    tier: 'Free'
+  }
   tags: {
     displayName: 'WhiskyApp Static Web App'
   }
@@ -36,6 +39,4 @@ resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = {
 }
 
 output swaDefaultHostname string = swa.properties.defaultHostname
-output swaDeploymentToken string = listSecrets(swa.id, swa.apiVersion).properties.apiKey {
-  secure: true
-}
+output swaDeploymentToken string = swa.listSecrets().properties.apiKey

@@ -7,12 +7,9 @@ param swaName string
 param swaLocation string = 'westeurope'  // SWA has limited regions, westeurope is a valid one
 param repositoryUrl string
 param repositoryBranch string = 'main'
-param cosmosKey string {
-  secure: true
-}
+@secure()
+param cosmosKey string = ''
 param environment string
-
-var resourceGroupResourceId = '${subscription().id}/resourceGroups/${resourceGroupName}'
 
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: resourceGroupName
@@ -49,13 +46,10 @@ module staticWebAppModule './modules/staticwebapp.bicep' = {
   }
   dependsOn: [
     rg
-    cosmosDbModule
   ]
 }
 
 output cosmosEndpoint string = cosmosDbModule.outputs.cosmosEndpoint
 output cosmosAccountName string = cosmosDbModule.outputs.cosmosAccountName
 output swaDefaultHostname string = staticWebAppModule.outputs.swaDefaultHostname
-output swaDeploymentToken string = staticWebAppModule.outputs.swaDeploymentToken {
-  secure: true
-}
+output swaDeploymentToken string = staticWebAppModule.outputs.swaDeploymentToken

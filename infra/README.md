@@ -32,55 +32,74 @@ infra/
    ```
    Save the output JSON - it will be used as the `AZURE_CREDENTIALS` GitHub secret.
 
-2. Deploy the infrastructure:
+2. Deploy the infrastructure (first pass — `cosmosKey` defaults to empty, which is fine since the Cosmos account doesn't exist yet):
    ```bash
    # For development environment
    az deployment sub create \
      --name "whiskyapp-infra-dev" \
      --location northeurope \
      --template-file infra/main.bicep \
-     --parameters infra/parameters/dev.bicepparam \
-     --parameters cosmosKey=""
+     --parameters infra/parameters/dev.bicepparam
    
    # For production environment
    az deployment sub create \
      --name "whiskyapp-infra-prod" \
      --location northeurope \
      --template-file infra/main.bicep \
-     --parameters infra/parameters/prod.bicepparam \
-     --parameters cosmosKey=""
+     --parameters infra/parameters/prod.bicepparam
    ```
 
 3. Retrieve the Cosmos DB key after deployment:
    ```bash
    # For development environment
    az cosmosdb keys list \
-     --name cosmos-whiskyapp-dev \
-     --resource-group rg-whiskyapp \
+     --name cosmos-whiskyapp-123-dev \
+     --resource-group rg-whiskyapp-dev \
      --query primaryMasterKey \
      --output tsv
    
    # For production environment
    az cosmosdb keys list \
      --name cosmos-whiskyapp-prod \
-     --resource-group rg-whiskyapp \
+     --resource-group rg-whiskyapp-prd \
      --query primaryMasterKey \
      --output tsv
    ```
+
+   > **Important:** Re-deploy now with the real key so the SWA app settings are populated with `COSMOS_KEY`:
+   > ```bash
+   > # For development environment
+   > COSMOS_KEY=$(az cosmosdb keys list --name cosmos-whiskyapp-123-dev --resource-group rg-whiskyapp --query primaryMasterKey --output tsv)
+   > az deployment sub create \
+   >   --name "whiskyapp-infra-dev" \
+   >   --location northeurope \
+   >   --template-file infra/main.bicep \
+   >   --parameters infra/parameters/dev.bicepparam \
+   >   --parameters cosmosKey="$COSMOS_KEY"
+   >
+   > # For production environment
+   > COSMOS_KEY=$(az cosmosdb keys list --name cosmos-whiskyapp-prod --resource-group rg-whiskyapp --query primaryMasterKey --output tsv)
+   > az deployment sub create \
+   >   --name "whiskyapp-infra-prod" \
+   >   --location northeurope \
+   >   --template-file infra/main.bicep \
+   >   --parameters infra/parameters/prod.bicepparam \
+   >   --parameters cosmosKey="$COSMOS_KEY"
+   > ```
 
 4. Retrieve the SWA deployment token:
    ```bash
    # For development environment
    az staticwebapp secrets list \
      --name swa-whiskyapp-dev \
-     --resource-group rg-whiskyapp \
+     --resource-group rg-whiskyapp-dev \
      --query properties.apiKey \
      --output tsv
    
    # For production environment
    az staticwebapp secrets list \
      --name swa-whiskyapp-prod \
-     --resource-group rg-whiskyapp \
+     --resource-group rg-whiskyapp-prd \
      --query properties.apiKey \
      --output tsv
    ```
@@ -103,4 +122,4 @@ After infrastructure deployment, the following steps must be completed manually:
 - `dev.bicepparam` - Parameters for the development environment
 - `prod.bicepparam` - Parameters for the production environment
 
-Both files use placeholders for the repository URL and require the Cosmos DB key to be provided at deployment time.
+Both files use placeholders for the repository URL. The `cosmosKey` parameter defaults to empty and must be supplied via `--parameters cosmosKey=` on the second deployment pass once the Cosmos account exists.
