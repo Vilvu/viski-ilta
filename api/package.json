@@ -2,7 +2,6 @@
   "name": "whisky-app-api",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "main": "dist/functions/*.js",
   "scripts": {
     "build": "tsc",
