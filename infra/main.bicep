@@ -6,7 +6,7 @@ param cosmosAccountName string
 param swaName string
 param swaLocation string = 'westeurope'  // SWA has limited regions, westeurope is a valid one
 param repositoryUrl string
-param repositoryBranch string = 'main'
+param repositoryBranch string
 @secure()
 param cosmosKey string = ''
 param environment string
