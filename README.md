@@ -40,7 +40,6 @@ whisky-app/
 5. Start the API: `cd api && npm run dev`
 6. Start the frontend: `cd frontend && npm run dev`
 
-> **No database required** — The project ships with an in-memory CosmosDB mock enabled by default (`USE_COSMOS_MOCK=true` in `api/local.settings.json`). Seed data — 2 events, 7 whiskeys, and 5 ratings — is pre-loaded automatically on each startup. Data resets when the function host restarts.
 
 To use a real Cosmos DB instance instead, set `USE_COSMOS_MOCK` to `"false"` in `api/local.settings.json` and provide valid `COSMOS_ENDPOINT` and `COSMOS_KEY` values. See the [Technical Specification](context/WhiskyApp/technical.md) for full details.
 

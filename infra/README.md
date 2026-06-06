@@ -109,13 +109,37 @@ infra/
 - `AZURE_CREDENTIALS` - Service principal JSON from step 1
 - `COSMOS_KEY` - Cosmos DB primary key (retrieved in step 3)
 
+## GitHub Environments Setup
+
+The repository uses two GitHub Environments for dev/prod deployments:
+
+### Create Environments
+
+In the GitHub repository → **Settings → Environments**, create two environments:
+
+| Environment | Protection rules | Secrets |
+|-------------|------------------|---------|
+| `dev` | None (auto-deploy on push to `dev` branch) | `AZURE_STATIC_WEB_APPS_API_TOKEN` = dev SWA token |
+| `prod` | Optional: require reviewer approval | `AZURE_STATIC_WEB_APPS_API_TOKEN` = prod SWA token |
+
+### Retrieve SWA Deployment Tokens
+
+```bash
+# Dev token
+az staticwebapp secrets list --name swa-whiskyapp-dev --resource-group rg-whiskyapp-dev --query properties.apiKey --output tsv
+
+# Prod token
+az staticwebapp secrets list --name swa-whiskyapp-prod --resource-group rg-whiskyapp-prd --query properties.apiKey --output tsv
+```
+
+Add these tokens to the respective GitHub Environment secrets.
+
 ## Manual Configuration Steps
 
 After infrastructure deployment, the following steps must be completed manually:
 
 1. Configure Google OAuth identity provider on SWA (via Azure Portal)
 2. Assign admin roles via Azure Portal
-3. Store the SWA deployment token as `AZURE_STATIC_WEB_APPS_API_TOKEN` in GitHub
 
 ## Parameter Files
 
