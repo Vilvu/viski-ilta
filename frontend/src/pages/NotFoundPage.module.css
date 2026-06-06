@@ -1,0 +1,36 @@
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+
+.content {
+  text-align: center;
+}
+
+.emoji {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.content h1 {
+  font-family: var(--font-family);
+  font-size: 2rem;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.content p {
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.homeLink {
+  background: var(--color-primary);
+  color: white;
+  padding: 0.6rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  display: inline-block;
+}

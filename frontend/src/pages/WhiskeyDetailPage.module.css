@@ -1,0 +1,306 @@
+.page { }
+
+.breadcrumb {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.breadcrumb a {
+  color: var(--color-primary);
+}
+
+.whiskeyHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  gap: 1.5rem;
+}
+
+.whiskeyHeader h1 {
+  font-family: var(--font-family);
+  font-size: 2rem;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.description {
+  margin-top: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.overallRating {
+  text-align: center;
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--border-radius);
+  padding: 1rem 1.5rem;
+  flex-shrink: 0;
+}
+
+.ratingNumber {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ratingLabel {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.myRatingSection {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+}
+
+.myRatingSection h2 {
+  font-family: var(--font-family);
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.myRatingDisplay {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.myScore {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.myNotes {
+  flex: 1;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.myRatingActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.editBtn {
+  background: none;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+}
+
+.deleteBtn {
+  background: none;
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+}
+
+.ratingForm { }
+
+.scoreSelector {
+  margin-bottom: 1rem;
+}
+
+.scoreSelector label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.scoreButtons {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.scoreBtn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-background);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: all 0.15s;
+}
+
+.scoreBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.scoreBtn.selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.formGroup textarea {
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  background: var(--color-background);
+  color: var(--color-text);
+  resize: vertical;
+}
+
+.formGroup textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.formActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.cancelBtn {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius);
+}
+
+.submitBtn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.signInPrompt {
+  text-align: center;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+}
+
+.signInBtn {
+  background: var(--color-primary);
+  color: white;
+  padding: 0.6rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  display: inline-block;
+}
+
+.allRatings {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.allRatings h2 {
+  font-family: var(--font-family);
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.ratingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ratingItem {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--color-background);
+  border-radius: var(--border-radius);
+  align-items: flex-start;
+}
+
+.ratingScore {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  min-width: 2rem;
+  text-align: center;
+}
+
+.ratingContent {
+  flex: 1;
+}
+
+.ratingUser {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.ratingNotes {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.ratingDate {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.empty {
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 1rem;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-error);
+}

@@ -1,0 +1,13 @@
+{
+  "name": "whisky-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix api\"",
+    "build": "npm run build --prefix frontend && npm run build --prefix api",
+    "lint": "npm run lint --prefix frontend && npm run lint --prefix api"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

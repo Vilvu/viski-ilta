@@ -1,0 +1,33 @@
+name: Infra Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Infrastructure
+        run: |
+          az deployment sub create \
+            --name "whiskyapp-infra-${{ inputs.environment }}-$(date +%Y%m%d-%H%M%S)" \
+            --location northeurope \
+            --template-file infra/main.bicep \
+            --parameters infra/parameters/${{ inputs.environment }}.bicepparam \
+            --parameters cosmosKey=${{ secrets.COSMOS_KEY }}
