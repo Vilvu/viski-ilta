@@ -2,7 +2,7 @@
   "name": "whisky-app-api",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/functions/*.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "predev": "npm run build",
