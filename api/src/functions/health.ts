@@ -10,9 +10,10 @@ async function healthHandler(
   const dbName = process.env.COSMOS_DATABASE ?? '(not set, default: whiskyapp)';
 
   const envCheck = {
-    COSMOS_ENDPOINT: endpoint ? `set (${endpoint})` : 'MISSING',
+    COSMOS_ENDPOINT: endpoint ? 'set' : 'MISSING',
     COSMOS_KEY: key ? `set (length=${key.length})` : 'MISSING',
     COSMOS_DATABASE: dbName,
+    NODE_VERSION: process.version,
   };
 
   if (!endpoint || !key) {
