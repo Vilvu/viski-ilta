@@ -138,7 +138,7 @@ Add these tokens to the respective GitHub Environment secrets.
 
 After infrastructure deployment, the following steps must be completed manually:
 
-1. Configure Google OAuth identity provider on SWA (via Azure Portal)
+1. Configure Microsoft Entra ID identity provider on SWA (pre-configured provider - no additional setup needed for Free SKU)
 2. Assign admin roles via Azure Portal
 
 ## Parameter Files

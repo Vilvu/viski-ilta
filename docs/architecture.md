@@ -36,8 +36,8 @@ WhiskyApp follows a **serverless, JAMstack-inspired architecture** on Azure, opt
 │  └──────────────────────────────────┘                           │
 │                                                                 │
 │  ┌──────────────────────────────────┐                           │
-│  │   Google OAuth Provider          │                           │
-│  │   - Configured via SWA Auth      │                           │
+│  │   Microsoft Entra ID             │                           │
+│  │   - Pre-configured SWA Auth      │                           │
 │  └──────────────────────────────────┘                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -50,15 +50,11 @@ sequenceDiagram
     participant SWA as Azure Static Web Apps
     participant AF as Azure Functions API
     participant DB as Cosmos DB
-    participant G as Google OAuth
+    participant A as Microsoft Entra ID
 
-    U->>SWA: GET / - Load React SPA
-    SWA-->>U: HTML/JS/CSS bundle
-
-    Note over U: User clicks Sign In
-    U->>SWA: GET /.auth/login/google
-    SWA->>G: OAuth redirect
-    G-->>SWA: Auth callback with token
+    U->>SWA: GET /.auth/login/aad
+    SWA->>A: OAuth redirect
+    A-->>SWA: Auth callback with token
     SWA-->>U: Set auth cookie + redirect
 
     Note over U: User browses events
@@ -133,19 +129,19 @@ sequenceDiagram
 | Aspect | Decision |
 |--------|----------|
 | **Provider** | Azure Static Web Apps built-in authentication |
-| **OAuth Provider** | Google |
+| **OAuth Provider** | Microsoft Entra ID |
 | **Session Management** | SWA-managed cookies |
 | **Role Management** | SWA role assignments via `staticwebapp.config.json` |
 
-**Rationale**: Azure Static Web Apps provides built-in authentication with zero additional configuration cost. It handles the OAuth flow, session management, and provides user identity to the API functions via request headers. This eliminates the need for Azure AD B2C — which has its own complexity and cost — while providing everything the MVP needs.
+**Rationale**: Azure Static Web Apps provides built-in authentication with zero additional configuration cost. It handles the OAuth flow, session management, and provides user identity to the API functions via request headers. Entra ID is a pre-configured provider available on the Free SKU, eliminating the need for separate app registration or custom provider setup.
 
 **Why not Azure AD B2C?**
 - AD B2C requires a separate tenant, custom policies, and user flows — significant setup complexity
 - AD B2C has a cost per authentication — first 50K/month free, but adds operational overhead
-- SWA built-in auth is simpler, free, and sufficient for Google OAuth
+- SWA built-in auth with Entra ID is simpler, free, and sufficient for MVP
 - Can migrate to AD B2C later if more providers or advanced flows are needed
 
-**Admin Role Assignment**: Admin users are configured in the Azure Static Web Apps portal by assigning the `admin` role to specific Google-authenticated user identities. This is managed through the SWA invitation system or via the Azure portal.
+**Admin Role Assignment**: Admin users are configured in the Azure Static Web Apps portal by assigning the `admin` role to specific Entra ID-authenticated user identities. This is managed through the SWA invitation system or via the Azure portal.
 
 ### 2.5 Hosting — Azure Static Web Apps
 
@@ -161,36 +157,36 @@ sequenceDiagram
 ### 2.6 Technology Stack Summary
 
 ```
-┌─────────────────────────────────────────────┐
-│              Technology Stack                │
-├─────────────────────────────────────────────┤
-│  Frontend                                    │
-│  ├── React 18+                               │
-│  ├── TypeScript - strict                     │
-│  ├── Vite                                    │
-│  ├── React Router v6                         │
-│  ├── TanStack Query                          │
-│  └── CSS Modules or Tailwind CSS             │
-├─────────────────────────────────────────────┤
-│  Backend                                     │
-│  ├── Azure Functions v4                      │
-│  ├── Node.js 20 LTS                          │
-│  ├── TypeScript                              │
-│  └── @azure/cosmos SDK                       │
-├─────────────────────────────────────────────┤
-│  Data                                        │
-│  ├── Azure Cosmos DB - NoSQL API             │
-│  └── Serverless capacity mode                │
-├─────────────────────────────────────────────┤
-│  Auth                                        │
-│  ├── Azure SWA built-in auth                 │
-│  └── Google OAuth provider                   │
-├─────────────────────────────────────────────┤
-│  Infrastructure                              │
-│  ├── Azure Static Web Apps - Free tier       │
-│  ├── GitHub Actions - CI/CD                  │
-│  └── Azure Cosmos DB - Serverless            │
-└─────────────────────────────────────────────┘
+160: ┌─────────────────────────────────────────────┐
+161: │              Technology Stack                │
+162: ├─────────────────────────────────────────────┤
+163: │  Frontend                                    │
+164: │  ├── React 18+                               │
+165: │  ├── TypeScript - strict                     │
+166: │  ├── Vite                                    │
+167: │  ├── React Router v6                         │
+168: │  ├── TanStack Query                          │
+169: │  └── CSS Modules or Tailwind CSS             │
+170: ├─────────────────────────────────────────────┤
+171: │  Backend                                     │
+172: │  ├── Azure Functions v4                      │
+173: │  ├── Node.js 20 LTS                          │
+174: │  ├── TypeScript                              │
+175: │  └── @azure/cosmos SDK                       │
+176: ├─────────────────────────────────────────────┤
+177: │  Data                                        │
+178: │  ├── Azure Cosmos DB - NoSQL API             │
+179: │  └── Serverless capacity mode                │
+180: ├─────────────────────────────────────────────┤
+181: │  Auth                                        │
+182: │  ├── Azure SWA built-in auth                 │
+183: │  └── Microsoft Entra ID provider             │
+184: ├─────────────────────────────────────────────┤
+185: │  Infrastructure                              │
+186: │  ├── Azure Static Web Apps - Free tier       │
+187: │  ├── GitHub Actions - CI/CD                  │
+188: │  └── Azure Cosmos DB - Serverless            │
+189: └─────────────────────────────────────────────┘
 ```
 
 ---
@@ -288,13 +284,13 @@ flowchart LR
     B -->|Response| A
 ```
 
-### 4.3 Auth Flow — Google Sign-In
+### 4.3 Auth Flow — Microsoft Entra ID Sign-In
 
 ```mermaid
 flowchart LR
-    A[Browser] -->|Click Sign In| B[/.auth/login/google]
-    B -->|302 Redirect| C[Google OAuth]
-    C -->|User consents| D[Google callback]
+    A[Browser] -->|Click Sign In| B[/.auth/login/aad]
+    B -->|302 Redirect| C[Microsoft Entra ID]
+    C -->|User consents| D[Entra ID callback]
     D -->|Auth code| E[SWA Auth endpoint]
     E -->|Set cookie| F[Browser - authenticated]
     F -->|Subsequent requests include cookie| G[SWA adds x-ms-client-principal header]
@@ -336,9 +332,9 @@ flowchart LR
 ┌─────────────────────────────────────────────┐
 │  Azure Static Web Apps Authentication       │
 │                                              │
-│  /.auth/login/google  → Initiate OAuth      │
-│  /.auth/logout        → Clear session       │
-│  /.auth/me            → Get current user    │
+│  /.auth/login/aad   → Initiate OAuth        │
+│  /.auth/logout      → Clear session         │
+│  /.auth/me          → Get current user      │
 │                                              │
 │  Cookie-based session management             │
 │  x-ms-client-principal header to API         │
@@ -381,7 +377,7 @@ rg-whiskyapp-dev
 ├── Azure Static Web Apps    — swa-whiskyapp-dev
 │   ├── Frontend hosting     — React SPA
 │   ├── Managed Functions    — API endpoints
-│   └── Built-in Auth        — Google OAuth
+│   └── Built-in Auth        — Microsoft Entra ID
 └── Azure Cosmos DB Account  — cosmos-whiskyapp-dev
     └── Database: whiskyapp
         ├── Container: events

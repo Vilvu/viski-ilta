@@ -57,7 +57,7 @@ Users are not stored in the database. User identity is derived from the Azure St
 
 ```typescript
 interface ClientPrincipal {
-  identityProvider: string;  // "google"
+  identityProvider: string;  // "aad"
   userId: string;            // Unique user ID from provider
   userDetails: string;       // Email address
   userRoles: string[];       // ["anonymous", "authenticated", "admin"]
@@ -378,17 +378,17 @@ AND r.userId = @userId
 
 ## 4. Authentication Flow
 
-### 4.1 Google OAuth via Azure Static Web Apps
+### 4.1 Entra ID via Azure Static Web Apps
 
 Azure Static Web Apps provides built-in authentication endpoints that handle the entire OAuth flow.
 
 #### Sign-In Flow
 
 1. User clicks "Sign In" button in the React app
-2. Browser navigates to `/.auth/login/google`
-3. SWA redirects to Google OAuth consent screen
-4. User authenticates with Google and grants consent
-5. Google redirects back to SWA callback URL
+2. Browser navigates to `/.auth/login/aad`
+3. SWA redirects to Microsoft Entra ID consent screen
+4. User authenticates with Microsoft and grants consent
+5. Microsoft redirects back to SWA callback URL
 6. SWA creates a session cookie and redirects to the app — default: `/`
 7. App calls `/.auth/me` to get user info and roles
 
@@ -448,18 +448,15 @@ Admin roles are assigned through the Azure Static Web Apps portal:
 ```json
 // staticwebapp.config.json
 {
-  "auth": {
-    "identityProviders": {
-      "google": {
-        "registration": {
-          "openIdConnectConfiguration": {
-            "wellKnownOpenIdConfiguration": "https://accounts.google.com/.well-known/openid-configuration"
-          }
-        }
-      }
-    }
-  },
   "routes": [
+    {
+      "route": "/.auth/login/aad",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/.auth/logout",
+      "allowedRoles": ["anonymous"]
+    },
     {
       "route": "/api/events",
       "methods": ["POST"],
@@ -493,8 +490,8 @@ Admin roles are assigned through the Azure Static Web Apps portal:
   ],
   "responseOverrides": {
     "401": {
-      "statusCode": 401,
-      "redirect": ""
+      "redirect": "/.auth/login/aad",
+      "statusCode": 302
     }
   },
   "navigationFallback": {
@@ -506,6 +503,8 @@ Admin roles are assigned through the Azure Static Web Apps portal:
   }
 }
 ```
+
+No `auth.identityProviders` block is needed for the pre-configured Entra ID provider on the Free SKU.
 
 ---
 
@@ -569,7 +568,7 @@ function useAuth(): {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  login: () => void;   // navigates to /.auth/login/google
+  login: () => void;   // navigates to /.auth/login/aad
   logout: () => void;  // navigates to /.auth/logout
 }
 
@@ -690,16 +689,7 @@ const ratingsApi = {
 | `COSMOS_DATABASE` | Database name | `whiskyapp` |
 | `USE_COSMOS_MOCK` | Use in-memory mock instead of real Cosmos DB | `true` or `false` |
 
-### 6.2 SWA Configuration — Google OAuth
-
-These are configured in the Azure Portal under Static Web Apps → Configuration:
-
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID from Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret from Google Cloud Console |
-
-### 6.3 Local Development
+### 6.2 Local Development
 
 #### Option A — In-Memory CosmosDB Mock (Recommended)
 
@@ -813,13 +803,15 @@ Backup Policy: Periodic — default for serverless
 Network: Public access — restrict via connection string
 ```
 
-### 7.3 Google Cloud Console — OAuth Setup
+### 7.3 Entra ID — Provider Configuration
 
-1. Create a new project in Google Cloud Console
-2. Enable Google+ API — or Google Identity Services
-3. Create OAuth 2.0 credentials — Web application type
-4. Set authorized redirect URI: `https://{swa-hostname}/.auth/login/google/callback`
-5. Copy Client ID and Client Secret to SWA configuration
+Entra ID is a pre-configured identity provider on Azure Static Web Apps Free SKU. No separate app registration or client credentials are required for the default multitenant setup.
+
+- **Login URL**: `/.auth/login/aad`
+- **Supported accounts**: Any Microsoft account (personal or work/school)
+- **No client ID/secret required** for the pre-configured provider
+
+To restrict authentication to a single Azure AD tenant, an Azure App Registration would be required — this is a Standard SKU feature. For the MVP on Free SKU, the pre-configured multitenant provider is used as-is.
 
 ---
 

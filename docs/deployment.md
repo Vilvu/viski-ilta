@@ -8,14 +8,13 @@ Comprehensive guide for deploying and operating the WhiskyApp whisky tasting eve
 
 1. [Prerequisites](#1-prerequisites)
 2. [Azure Infrastructure Setup](#2-azure-infrastructure-setup)
-3. [Google OAuth Setup](#3-google-oauth-setup)
-4. [Azure Static Web Apps Auth Configuration](#4-azure-static-web-apps-auth-configuration)
-5. [Admin Role Assignment](#5-admin-role-assignment)
-6. [GitHub Actions CI/CD Setup](#6-github-actions-cicd-setup)
-7. [Local Development Setup](#7-local-development-setup)
-8. [Environment Variables Reference](#8-environment-variables-reference)
-9. [Troubleshooting](#9-troubleshooting)
-10. [Monitoring and Operations](#10-monitoring-and-operations)
+3. [Entra ID Setup](#3-entra-id-setup)
+4. [Admin Role Assignment](#4-admin-role-assignment)
+5. [GitHub Actions CI/CD Setup](#5-github-actions-cicd-setup)
+6. [Local Development Setup](#6-local-development-setup)
+7. [Environment Variables Reference](#7-environment-variables-reference)
+8. [Troubleshooting](#8-troubleshooting)
+9. [Monitoring and Operations](#9-monitoring-and-operations)
 
 ---
 
@@ -39,7 +38,7 @@ Before starting, ensure you have the following installed and configured:
 |---------|---------|
 | **Azure** | Cloud hosting — [portal.azure.com](https://portal.azure.com) |
 | **GitHub** | Source code repository and CI/CD |
-| **Google Cloud Console** | OAuth provider credentials — [console.cloud.google.com](https://console.cloud.google.com) |
+| **Microsoft Account** | Entra ID sign-in (work/school or personal Microsoft account) |
 
 ### Install Azure CLI
 
@@ -231,92 +230,41 @@ az staticwebapp appsettings set \
 
 ---
 
-## 3. Google OAuth Setup
+## 3. Entra ID Setup
 
-### 3.1 Create a Google Cloud Project
+Entra ID (formerly Azure Active Directory) is a **pre-configured identity provider** on Azure Static Web Apps Free SKU. No separate app registration or client credentials are required for the default multitenant setup.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Click the project dropdown at the top → **New Project**
-3. Enter project name: `WhiskyApp` (or similar)
-4. Click **Create**
-5. Select the newly created project
+### 3.1 How It Works
 
-### 3.2 Enable the Google+ API (if not already enabled)
+- **Login URL**: `/.auth/login/aad`
+- **Supported accounts**: Any Microsoft account (personal or work/school)
+- **No client ID/secret required** for the pre-configured provider
+- **Admin role management**: Built-in SWA invitation system via Azure Portal
 
-1. Navigate to **APIs & Services** → **Library**
-2. Search for **Google+ API** or **Google Identity**
-3. Click **Enable** (this may already be enabled by default)
+### 3.2 Optional: Single Tenant Restriction
 
-### 3.3 Configure OAuth Consent Screen
+The pre-configured provider allows any Microsoft account to sign in. To restrict authentication to a specific Azure AD tenant:
 
-1. Navigate to **APIs & Services** → **OAuth consent screen**
-2. Select **External** user type → **Create**
-3. Fill in the required fields:
-   - **App name**: WhiskyApp
-   - **User support email**: Your email
-   - **Developer contact information**: Your email
-4. Click **Save and Continue**
-5. **Scopes**: Add `email` and `profile` scopes → **Save and Continue**
-6. **Test users**: Add your email for testing → **Save and Continue**
-7. Click **Back to Dashboard**
+1. Register an application in [Azure Portal](https://portal.azure.com) → **App registrations**
+2. Configure authentication settings (redirect URIs, etc.)
+3. Note the Application (client) ID and Directory (tenant) ID
+4. Configure via `staticwebapp.config.json` `auth.identityProviders.azureActiveDirectory`
 
-> **Note**: While in "Testing" mode, only test users can sign in. To allow any Google user, click **Publish App** on the consent screen dashboard. For an MVP with limited users, testing mode is fine — just add all users as test users.
+> **Note**: Single-tenant configuration via `staticwebapp.config.json` is a **Standard SKU feature**. On the Free SKU, the pre-configured multitenant provider is used as-is.
 
-### 3.4 Create OAuth 2.0 Credentials
-
-1. Navigate to **APIs & Services** → **Credentials**
-2. Click **Create Credentials** → **OAuth client ID**
-3. Select **Web application**
-4. Enter name: `WhiskyApp SWA`
-5. Under **Authorized redirect URIs**, add:
-   ```
-   https://<your-swa-domain>.azurestaticapps.net/.auth/login/google/callback
-   ```
-   > You can find your SWA domain in the Azure Portal under your Static Web App resource → **Overview** → **URL**
-6. Click **Create**
-7. Copy the **Client ID** and **Client Secret** — you will need these in the next section
-
-> **Important**: If you add a custom domain later, you must also add its callback URI:
-> `https://yourdomain.com/.auth/login/google/callback`
-
----
-
-## 4. Azure Static Web Apps Auth Configuration
-
-### 4.1 Configure Google as Identity Provider
-
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to your Static Web App resource (`swa-whiskyapp`)
-3. In the left menu, click **Settings** → **Authentication**
-4. Under **Identity providers**, click **Add provider**
-5. Select **Google**
-6. Enter:
-   - **Client ID**: The OAuth Client ID from Google Cloud Console
-   - **Client Secret**: The OAuth Client Secret from Google Cloud Console
-7. Click **Add**
-
-### 4.2 Verify Auth Configuration
-
-The application's `staticwebapp.config.json` already configures the auth routes:
-
-- **Login**: `/.auth/login/google` — redirects to Google OAuth
-- **Logout**: `/.auth/logout` — clears the session
-- **401 Override**: Unauthenticated API requests redirect to Google login
-- **Callback URL**: `https://<your-swa-domain>/.auth/login/google/callback` — handled automatically by SWA
-
-### 4.3 Auth Flow Summary
+### 3.3 Auth Flow Summary
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant SWA as Azure Static Web Apps
-    participant G as Google OAuth
+    participant A as Microsoft Entra ID
 
     U->>SWA: Click Sign In
-    SWA->>G: Redirect to Google login
-    G-->>U: Google consent screen
-    U->>G: Approve access
-    G-->>SWA: Auth code callback
+    SWA->>A: Redirect to Entra ID login
+    A-->>U: Microsoft consent screen
+    U->>A: Approve access
+    A-->>SWA: Auth code callback
     SWA-->>U: Set auth cookie and redirect to app
     Note over U,SWA: Subsequent requests include auth cookie
     U->>SWA: GET /.auth/me
@@ -325,33 +273,33 @@ sequenceDiagram
 
 ---
 
-## 5. Admin Role Assignment
+## 4. Admin Role Assignment
 
 Azure Static Web Apps uses a role-based access control system. All authenticated users automatically receive the `authenticated` role. The `admin` role must be explicitly assigned.
 
-### 5.1 Invite Users as Admin
+### 4.1 Invite Users as Admin
 
 1. Go to [Azure Portal](https://portal.azure.com)
 2. Navigate to your Static Web App resource (`swa-whiskyapp`)
 3. In the left menu, click **Settings** → **Role management**
 4. Click **Invite**
 5. Fill in:
-   - **Identity provider**: Google
-   - **Invitee email**: The Google email address of the admin user
+   - **Identity provider**: Microsoft
+   - **Invitee email**: The email address of the admin user (Entra ID UPN)
    - **Role**: `admin`
    - **Invitation expiry**: Set an appropriate expiry (e.g., 8 hours)
 6. Click **Generate invitation link**
-7. Send the invitation link to the user — they must click it while signed in with their Google account to accept the role
+7. Send the invitation link to the user — they must click it while signed in with their Microsoft account to accept the role
 
-### 5.2 Role Hierarchy
+### 4.2 Role Hierarchy
 
 | Role | Access Level | How Assigned |
 |------|-------------|--------------|
 | `anonymous` | Read-only — browse events and whiskeys | Automatic for all visitors |
-| `authenticated` | Rate whiskeys — create, update, delete own ratings | Automatic upon Google sign-in |
+| `authenticated` | Rate whiskeys — create, update, delete own ratings | Automatic upon Microsoft sign-in |
 | `admin` | Full access — manage events and whiskeys | Manual invitation via Azure Portal |
 
-### 5.3 Verify Role Assignment
+### 4.3 Verify Role Assignment
 
 After a user accepts the admin invitation, they can verify their roles by visiting:
 ```
@@ -362,7 +310,7 @@ The response will include `userRoles` containing both `authenticated` and `admin
 
 ---
 
-## 6. GitHub Actions CI/CD Setup
+## 5. GitHub Actions CI/CD Setup
 
 The project includes a pre-configured GitHub Actions workflow at `.github/workflows/azure-static-web-apps.yml`.
 
@@ -440,7 +388,7 @@ flowchart LR
 
 ---
 
-## 7. Local Development Setup
+## 6. Local Development Setup
 
 ### 7.1 Clone and Install
 
@@ -527,7 +475,7 @@ This starts the Vite dev server on `http://localhost:5173`.
 
 ### 7.5 Authentication in Local Development
 
-> **Important**: Azure Static Web Apps built-in authentication does **not** work in local development. The `/.auth/login/google` and `/.auth/me` endpoints are only available when the app is deployed to Azure.
+> **Important**: Azure Static Web Apps built-in authentication does **not** work in local development. The `/.auth/login/aad` and `/.auth/me` endpoints are only available when the app is deployed to Azure.
 
 For local testing, you have two options:
 
@@ -543,7 +491,7 @@ npm install -g @azure/static-web-apps-cli
 swa start http://localhost:5173 --api-location ./api
 ```
 
-The SWA CLI provides a mock login page at `http://localhost:4280/.auth/login/google` where you can enter test user details.
+The SWA CLI provides a mock login page at `http://localhost:4280/.auth/login/aad` where you can enter test user details.
 
 #### Option 2: Mock the Auth Header
 
@@ -582,9 +530,9 @@ cd ../api && npm run build     # Output: api/dist/
 
 ---
 
-## 8. Environment Variables Reference
+## 7. Environment Variables Reference
 
-### 8.1 API Environment Variables (Azure Functions)
+### 7.1 API Environment Variables (Azure Functions)
 
 | Variable | Required | Default | Description | Example |
 |----------|----------|---------|-------------|---------|
@@ -594,7 +542,7 @@ cd ../api && npm run build     # Output: api/dist/
 | `FUNCTIONS_WORKER_RUNTIME` | Yes | — | Azure Functions runtime (set automatically) | `node` |
 | `AzureWebJobsStorage` | Local only | — | Storage connection for local dev | `UseDevelopmentStorage=true` |
 
-### 8.2 Frontend Environment Variables (Vite)
+### 7.2 Frontend Environment Variables (Vite)
 
 | Variable | Required | Default | Description | Example |
 |----------|----------|---------|-------------|---------|
@@ -602,7 +550,7 @@ cd ../api && npm run build     # Output: api/dist/
 
 > **Note**: Vite environment variables must be prefixed with `VITE_` to be exposed to the frontend bundle. Never put secrets in `VITE_` variables — they are embedded in the client-side JavaScript.
 
-### 8.3 GitHub Actions Secrets
+### 7.3 GitHub Actions Secrets
 
 | Secret | Required | Description |
 |--------|----------|-------------|
@@ -612,7 +560,7 @@ cd ../api && npm run build     # Output: api/dist/
 | `COSMOS_DB_DATABASE` | No | Database name — defaults to `whiskyapp` |
 | `GITHUB_TOKEN` | Auto | Automatically provided by GitHub Actions |
 
-### 8.4 Azure Static Web Apps Application Settings
+### 7.4 Azure Static Web Apps Application Settings
 
 These are configured via Azure Portal or CLI (Section 2.4) and are injected into the Azure Functions runtime:
 
@@ -622,7 +570,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
 | `COSMOS_KEY` | Your Cosmos DB primary key |
 | `COSMOS_DATABASE` | `whiskyapp` |
 
-### 8.5 Where Each Variable Is Set
+### 7.5 Where Each Variable Is Set
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -646,7 +594,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
 
 ---
 
-## 9. Troubleshooting
+## 8. Troubleshooting
 
 ### 9.1 CORS Errors in Local Development
 
@@ -670,7 +618,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
 
 ### 9.2 Authentication Not Working Locally
 
-**Symptom**: `/.auth/login/google` returns 404 or the auth flow does not complete.
+**Symptom**: `/.auth/login/aad` returns 404 or the auth flow does not complete.
 
 **Cause**: Azure Static Web Apps built-in auth is a cloud-only feature. The `/.auth/*` endpoints are provided by the SWA infrastructure, not by your application code.
 
@@ -697,7 +645,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
      --resource-group rg-whiskyapp
    ```
 
-### 9.4 Azure Functions Not Starting Locally
+### 8.4 Azure Functions Not Starting Locally
 
 **Symptom**: `npm run dev` in the `api/` directory fails or `func start` errors.
 
@@ -722,7 +670,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
    node --version
    ```
 
-### 9.5 Build Failures
+### 8.5 Build Failures
 
 **Symptom**: `npm run build` fails in frontend or API.
 
@@ -736,7 +684,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
 - Missing dependencies: Run `cd api && npm install`
 - Ensure `api/tsconfig.json` output directory matches expectations
 
-### 9.6 GitHub Actions Deployment Failures
+### 8.6 GitHub Actions Deployment Failures
 
 **Symptom**: The GitHub Actions workflow fails.
 
@@ -751,7 +699,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
    ```
 4. If the token was regenerated, update the `AZURE_STATIC_WEB_APPS_API_TOKEN` secret in GitHub
 
-### 9.7 404 Errors on Page Refresh (Client-Side Routing)
+### 8.7 404 Errors on Page Refresh (Client-Side Routing)
 
 **Symptom**: Navigating directly to a URL like `/events/123` returns a 404.
 
@@ -767,7 +715,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
 }
 ```
 
-### 9.8 Staging Environments Not Cleaning Up
+### 8.8 Staging Environments Not Cleaning Up
 
 **Symptom**: Old PR staging environments persist after PRs are closed.
 
@@ -783,7 +731,7 @@ az staticwebapp environment delete \
 
 ---
 
-## 10. Monitoring and Operations
+## 9. Monitoring and Operations
 
 ### 10.1 Application Insights
 
@@ -850,14 +798,14 @@ az cosmosdb sql container throughput show \
   --name events
 ```
 
-### 10.4 Cost Estimation for MVP Traffic
+### 9.4 Cost Estimation for MVP Traffic
 
 | Resource | Pricing Model | Estimated Monthly Cost |
 |----------|--------------|----------------------|
 | **Azure Static Web Apps** | Free tier | $0 |
 | **Azure Cosmos DB (Serverless)** | $0.25 per 1M RUs + $0.25/GB storage | < $1 for MVP traffic |
 | **Application Insights** | 5 GB/month free ingestion | $0 for MVP |
-| **Google OAuth** | Free | $0 |
+| **Microsoft Entra ID** | Free (pre-configured provider) | $0 |
 | **GitHub Actions** | 2,000 min/month free for public repos | $0 |
 | **Total estimated** | | **< $1/month** |
 
@@ -883,9 +831,9 @@ az staticwebapp hostname set \
   --hostname yourdomain.com
 ```
 
-> **Remember**: If you add a custom domain, update the Google OAuth authorized redirect URIs to include `https://yourdomain.com/.auth/login/google/callback`.
+> **Remember**: For custom domains, the Entra ID callback URI is automatically handled by SWA.
 
-### 10.6 Backup and Recovery
+### 9.6 Backup and Recovery
 
 #### Cosmos DB
 - **Point-in-time restore**: Cosmos DB serverless supports continuous backup with 7-day retention (included at no extra cost)
@@ -895,7 +843,7 @@ az staticwebapp hostname set \
 - All code is in GitHub — the repository is the source of truth
 - SWA deployments are immutable — you can roll back by redeploying a previous commit
 
-### 10.7 Scaling Considerations
+### 9.7 Scaling Considerations
 
 The current architecture is designed for MVP scale. If traffic grows significantly:
 
@@ -917,11 +865,8 @@ Use this checklist to track your deployment progress:
 - [ ] Database `whiskyapp` created
 - [ ] Containers created: `events`, `whiskeys`, `ratings`
 - [ ] Cosmos DB endpoint and key retrieved
-- [ ] Google Cloud project created
-- [ ] OAuth consent screen configured
-- [ ] OAuth 2.0 credentials created (Client ID + Secret)
 - [ ] Azure Static Web App created and linked to GitHub
-- [ ] Google auth provider configured in SWA
+- [ ] Entra ID auth provider configured (pre-configured — no additional setup needed)
 - [ ] SWA application settings configured (Cosmos DB credentials)
 - [ ] GitHub secrets configured
 - [ ] First deployment triggered (push to main)

@@ -71,11 +71,11 @@
 
 1. Documentation First
    - Review essential documentation before implementation:
-     - [PROJECT_NAME]/README.md
-     - context/[PROJECT_NAME]/prd.md (Product Requirements Documents (PRDs))
-     - context/[PROJECT_NAME]/architecture.md
-     - context/[PROJECT_NAME]/technical.md
-     - context/[PROJECT_NAME]/TODO.md
+     - docs/README.md
+     - docs/prd.md (Product Requirements Documents (PRDs))
+     - docs/architecture.md
+     - docs/technical.md
+     - docs/TODO.md
    - Request clarification immediately if documentation is incomplete or ambiguous.
 
 2. Architecture Adherence
@@ -85,28 +85,4 @@
 3. Pattern & Tech Stack Awareness
    - Utilize documented technologies and established patterns; introduce new elements only after clear justification.
 
-### Directory Structure:
-```
-/
-├── README.md
-├── context/
-│   ├── INDEX.md
-│   ├── docs/
-│   ├── workflows/
-│   ├── [PROJECT_NAME]/
-│   │   ├── architecture.md
-│   │   ├── prd.md
-│   │   ├── technical.md
-│   │   ├── INDEX.md
-│   │   ├── TODO.md
-│   │   ├── plans/
-│   │   │   ├── [YYYY-MM-DD]/
-│   │   │   │   ├── task-[TASK_NAME].md
-│   │   └── journal/
-│   │       ├── [YYYY-MM-DD]/
-│   │       │   ├── [HHMM]-[TASK_NAME].md
-├── [PROJECT_NAME]/
-│   ├── README.md
-│   ├── INDEX.md
-│   └── (other project folders/files)
-```
+

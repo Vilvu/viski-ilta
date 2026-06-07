@@ -21,8 +21,8 @@ export default function Layout() {
                   <a href="/.auth/logout">Sign out</a>
                 </div>
               ) : (
-                <a href="/.auth/login/google" className={styles.signInBtn}>
-                  Sign in with Google
+                <a href="/.auth/login/aad" className={styles.signInBtn}>
+                  Sign in with Microsoft
                 </a>
               ))}
           </nav>

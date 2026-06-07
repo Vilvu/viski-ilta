@@ -31,14 +31,14 @@ The MVP focuses on core event management and rating functionality. Advanced feat
 - **Who**: Event organizer or application owner
 - **Needs**: Create and manage tasting events, add/remove whiskeys from events
 - **Access**: Full CRUD on events and whiskeys; identified via a pre-configured admin list
-- **Authentication**: Google OAuth — must be in the admin allowlist
+- **Authentication**: Microsoft Entra ID (work/school or personal Microsoft account)
 
 ### 2.2 Authenticated User
 
 - **Who**: Tasting event participant
 - **Needs**: Rate whiskeys at events, view their own and aggregate ratings
 - **Access**: Can rate whiskeys; can view all events, whiskeys, and ratings
-- **Authentication**: Google OAuth sign-in
+- **Authentication**: Microsoft Entra ID sign-in
 
 ### 2.3 Anonymous User
 
@@ -85,7 +85,7 @@ The MVP focuses on core event management and rating functionality. Advanced feat
 
 | ID | Requirement | Role |
 |----|-------------|------|
-| FR-4.1 | Sign in with Google OAuth | All users |
+| FR-4.1 | Sign in with Microsoft Entra ID | All users |
 | FR-4.2 | Sign out | Authenticated User, Admin |
 | FR-4.3 | Display current user identity in the UI | Authenticated User, Admin |
 | FR-4.4 | Persist user session across page refreshes | Authenticated User, Admin |
@@ -147,8 +147,8 @@ The MVP focuses on core event management and rating functionality. Advanced feat
 
 ### 5.2 Authenticated User Stories
 
-**US-U1**: As an authenticated user, I want to sign in with my Google account so that I can rate whiskeys.
-- **Acceptance Criteria**: A sign-in button triggers Google OAuth flow; on success, the UI shows my name/avatar and the sign-in button is replaced with a sign-out button.
+**US-U1**: As an authenticated user, I want to sign in with my Microsoft account so that I can rate whiskeys.
+- **Acceptance Criteria**: A sign-in button triggers Entra ID OAuth flow; on success, the UI shows my name/avatar and the sign-in button is replaced with a sign-out button.
 
 **US-U2**: As an authenticated user, I want to rate a whiskey on a 1–5 scale so that I can record my opinion.
 - **Acceptance Criteria**: When viewing a whiskey in an event, I can select a rating from 1–5; the rating is saved immediately and reflected in the UI.
@@ -211,6 +211,6 @@ The following features are explicitly excluded from the MVP but may be considere
 ### Constraints
 
 - Azure as the sole cloud platform
-- Google as the sole OAuth provider for MVP
+- Microsoft Entra ID as the sole OAuth provider for MVP
 - Budget-conscious architecture — consumption-based pricing
 - Single-language UI — English only for MVP

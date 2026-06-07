@@ -7,7 +7,7 @@ A web application for recording and tracking user whisky ratings from whisky tas
 - **Frontend**: React + TypeScript + Vite
 - **Backend**: Azure Functions v4 (Node.js/TypeScript)
 - **Database**: Azure Cosmos DB (serverless)
-- **Auth**: Azure Static Web Apps built-in auth (Google OAuth)
+- **Auth**: Azure Static Web Apps built-in auth (Microsoft Entra ID)
 - **Hosting**: Azure Static Web Apps
 
 ## Project Structure
@@ -16,7 +16,7 @@ A web application for recording and tracking user whisky ratings from whisky tas
 whisky-app/
 ├── frontend/          # React + Vite frontend
 ├── api/               # Azure Functions backend
-├── context/           # Project documentation
+├── docs/              # Project documentation
 ├── staticwebapp.config.json
 └── .github/workflows/ # CI/CD
 ```
