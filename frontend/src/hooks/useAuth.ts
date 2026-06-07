@@ -40,7 +40,10 @@ export function useAuth(): AuthState {
         if (data.clientPrincipal) {
           const { userId, userRoles, claims, userDetails } =
             data.clientPrincipal;
-          const nameClaim = claims?.find((c) => c.typ === 'name');
+          const nameClaim =
+            claims?.find((c) => c.typ === 'name') ??
+            claims?.find((c) => c.typ === 'preferred_username') ??
+            claims?.find((c) => c.typ === 'upn');
           const isAdmin = userRoles.includes('admin');
 
           // Detect Azure SWA masked userDetails (e.g. "vil*****") —
