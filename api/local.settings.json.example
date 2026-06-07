@@ -6,8 +6,6 @@
     "COSMOS_ENDPOINT": "https://your-account.documents.azure.com:443/",
     "COSMOS_KEY": "your-cosmos-key",
     "COSMOS_DATABASE": "whiskyapp",
-    "USE_COSMOS_MOCK": "true",
-    "GOOGLE_CLIENT_ID": "your-google-client-id",
-    "GOOGLE_CLIENT_SECRET": "your-google-client-secret"
+    "USE_COSMOS_MOCK": "true"
   }
 }
