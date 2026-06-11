@@ -140,27 +140,23 @@ async function getWhiskey(
 ): Promise<HttpResponseInit> {
   try {
     const { eventId, whiskeyId } = req.params;
-    const principal = getClientPrincipal(req);
+    const principal = requireTaster(req);
     const container = getContainer('whiskeys');
     const { resource } = await container.item(whiskeyId, eventId).read();
     if (!resource) return notFound('Whiskey not found');
 
-    if (principal) {
-      const ratingsContainer = getContainer('ratings');
-      const { resources } = await ratingsContainer.items
-        .query({
-          query:
-            'SELECT * FROM c WHERE c.whiskeyId = @whiskeyId AND c.userId = @userId',
-          parameters: [
-            { name: '@whiskeyId', value: whiskeyId },
-            { name: '@userId', value: principal.userId },
-          ],
-        })
-        .fetchAll();
-      return ok({ ...resource, userRating: resources[0]?.score });
-    }
-
-    return ok(resource);
+    const ratingsContainer = getContainer('ratings');
+    const { resources } = await ratingsContainer.items
+      .query({
+        query:
+          'SELECT * FROM c WHERE c.whiskeyId = @whiskeyId AND c.userId = @userId',
+        parameters: [
+          { name: '@whiskeyId', value: whiskeyId },
+          { name: '@userId', value: principal.userId },
+        ],
+      })
+      .fetchAll();
+    return ok({ ...resource, userRating: resources[0]?.score });
   } catch (error) {
     return handleError(error);
   }

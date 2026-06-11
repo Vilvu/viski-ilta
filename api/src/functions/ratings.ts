@@ -27,6 +27,7 @@ async function getRatings(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
+    requireTaster(req);
     const whiskeyId = req.params.whiskeyId;
     const container = getContainer('ratings');
     const { resources } = await container.items

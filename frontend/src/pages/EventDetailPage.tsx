@@ -514,39 +514,72 @@ export default function EventDetailPage() {
                   </button>
                 )}
               </div>
-              <Link
-                to={`/events/${eventId}/whiskeys/${whiskey.id}`}
-                className={styles.whiskeyLink}
-              >
-                <div className={styles.whiskeyInfo}>
-                  <h3>{whiskey.name}</h3>
-                  <p className={styles.whiskeyMeta}>
-                    {whiskey.distillery} · {whiskey.region}
-                    {whiskey.age ? ` · ${whiskey.age}yr` : ''}
-                    {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
-                  </p>
-                </div>
-                <div className={styles.ratings}>
-                  <div className={styles.ratingBadge}>
-                    <span className={styles.ratingLabel}>Avg</span>
-                    <span className={styles.ratingValue}>
-                      {whiskey.ratingCount > 0
-                        ? whiskey.averageRating.toFixed(1)
-                        : '—'}
-                    </span>
+              {isTaster ? (
+                <Link
+                  to={`/events/${eventId}/whiskeys/${whiskey.id}`}
+                  className={styles.whiskeyLink}
+                >
+                  <div className={styles.whiskeyInfo}>
+                    <h3>{whiskey.name}</h3>
+                    <p className={styles.whiskeyMeta}>
+                      {whiskey.distillery} · {whiskey.region}
+                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
+                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
+                    </p>
                   </div>
-                  {whiskey.userRating !== undefined && (
-                    <div
-                      className={styles.ratingBadge + ' ' + styles.userRating}
-                    >
-                      <span className={styles.ratingLabel}>You</span>
+                  <div className={styles.ratings}>
+                    <div className={styles.ratingBadge}>
+                      <span className={styles.ratingLabel}>Avg</span>
                       <span className={styles.ratingValue}>
-                        {whiskey.userRating}
+                        {whiskey.ratingCount > 0
+                          ? whiskey.averageRating.toFixed(1)
+                          : '—'}
                       </span>
                     </div>
-                  )}
+                    {whiskey.userRating !== undefined && (
+                      <div
+                        className={styles.ratingBadge + ' ' + styles.userRating}
+                      >
+                        <span className={styles.ratingLabel}>You</span>
+                        <span className={styles.ratingValue}>
+                          {whiskey.userRating}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              ) : (
+                <div className={styles.whiskeyLink}>
+                  <div className={styles.whiskeyInfo}>
+                    <h3>{whiskey.name}</h3>
+                    <p className={styles.whiskeyMeta}>
+                      {whiskey.distillery} · {whiskey.region}
+                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
+                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
+                    </p>
+                  </div>
+                  <div className={styles.ratings}>
+                    <div className={styles.ratingBadge}>
+                      <span className={styles.ratingLabel}>Avg</span>
+                      <span className={styles.ratingValue}>
+                        {whiskey.ratingCount > 0
+                          ? whiskey.averageRating.toFixed(1)
+                          : '—'}
+                      </span>
+                    </div>
+                    {whiskey.userRating !== undefined && (
+                      <div
+                        className={styles.ratingBadge + ' ' + styles.userRating}
+                      >
+                        <span className={styles.ratingLabel}>You</span>
+                        <span className={styles.ratingValue}>
+                          {whiskey.userRating}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </Link>
+              )}
             </div>
           ))}
         </div>
