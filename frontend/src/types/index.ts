@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user' | 'anonymous';
+  role: 'admin' | 'taster' | 'user' | 'anonymous';
 }
 
 export interface Event {
@@ -12,6 +12,7 @@ export interface Event {
   date: string;
   location: string;
   createdBy: string;
+  createdByUserId?: string;
   createdAt: string;
   updatedAt: string;
   whiskeyCount: number;
@@ -27,11 +28,12 @@ export interface Whiskey {
   abv?: number;
   description?: string;
   createdBy: string;
+  createdByUserId?: string;
   createdAt: string;
   updatedAt: string;
   averageRating: number;
   ratingCount: number;
-  userRating?: number; // current user's rating, if authenticated
+  userRating?: number;
 }
 
 export interface Rating {
@@ -64,4 +66,4 @@ export interface PaginatedResponse<T> {
   pageSize: number;
 }
 
-export type UserRole = 'admin' | 'user' | 'anonymous';
+export type UserRole = 'admin' | 'taster' | 'user' | 'anonymous';

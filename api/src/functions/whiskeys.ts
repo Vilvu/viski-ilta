@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireAdmin, getClientPrincipal, getUserName } from '../lib/auth';
+import { requireTaster, isAdmin, getClientPrincipal, getUserName } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -19,6 +19,7 @@ interface WhiskeyDocument {
   abv?: number;
   description?: string;
   createdBy: string;
+  createdByUserId: string;
   createdAt: string;
   updatedAt: string;
   averageRating: number;
@@ -81,7 +82,7 @@ async function createWhiskey(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAdmin(req);
+    const principal = requireTaster(req);
     const eventId = req.params.eventId;
     const body = (await req.json()) as Partial<WhiskeyDocument>;
 
@@ -105,6 +106,7 @@ async function createWhiskey(
       abv: body.abv,
       description: body.description,
       createdBy: getUserName(principal),
+      createdByUserId: principal.userId,
       createdAt: now,
       updatedAt: now,
       averageRating: 0,
@@ -170,9 +172,19 @@ async function deleteWhiskey(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    requireAdmin(req);
+    const principal = requireTaster(req);
     const { eventId, whiskeyId } = req.params;
     const container = getContainer('whiskeys');
+    const { resource } = await container.item(whiskeyId, eventId).read();
+    if (!resource) return notFound('Whiskey not found');
+
+    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+      return {
+        status: 403,
+        body: JSON.stringify({ error: 'Only the creator or admin can delete this whiskey' }),
+      };
+    }
+
     await container.item(whiskeyId, eventId).delete();
 
     // Decrement event whiskey count
@@ -187,6 +199,39 @@ async function deleteWhiskey(
     }
 
     return noContent();
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+// PATCH /api/events/{eventId}/whiskeys/{whiskeyId}
+async function updateWhiskey(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const principal = requireTaster(req);
+    const { eventId, whiskeyId } = req.params;
+    const container = getContainer('whiskeys');
+    const { resource } = await container.item(whiskeyId, eventId).read();
+    if (!resource) return notFound('Whiskey not found');
+
+    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+      return {
+        status: 403,
+        body: JSON.stringify({ error: 'Only the creator or admin can update this whiskey' }),
+      };
+    }
+
+    const body = (await req.json()) as Partial<WhiskeyDocument>;
+    const updated: WhiskeyDocument = {
+      ...resource,
+      ...body,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const { resource: updatedResource } = await container.items.upsert(updated);
+    return ok(updatedResource);
   } catch (error) {
     return handleError(error);
   }
@@ -215,4 +260,10 @@ app.http('deleteWhiskey', {
   authLevel: 'anonymous',
   route: 'events/{eventId}/whiskeys/{whiskeyId}',
   handler: deleteWhiskey,
+});
+app.http('updateWhiskey', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'events/{eventId}/whiskeys/{whiskeyId}',
+  handler: updateWhiskey,
 });

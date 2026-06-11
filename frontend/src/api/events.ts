@@ -8,6 +8,13 @@ export interface CreateEventInput {
   location: string;
 }
 
+export interface UpdateEventInput {
+  name?: string;
+  description?: string;
+  date?: string;
+  location?: string;
+}
+
 export const eventsApi = {
   getAll: async (): Promise<Event[]> => {
     const response = await apiClient.get<ApiResponse<Event[]>>('/events');
@@ -26,5 +33,10 @@ export const eventsApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/events/${id}`);
+  },
+
+  update: async (id: string, input: UpdateEventInput): Promise<Event> => {
+    const response = await apiClient.patch<ApiResponse<Event>>(`/events/${id}`, input);
+    return response.data.data;
   },
 };

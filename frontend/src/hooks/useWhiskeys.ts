@@ -40,3 +40,18 @@ export function useDeleteWhiskey() {
     },
   });
 }
+
+export function useUpdateWhiskey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: whiskeysApi.update,
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['whiskeys', variables.eventId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['whiskeys', variables.eventId, variables.whiskeyId],
+      });
+    },
+  });
+}

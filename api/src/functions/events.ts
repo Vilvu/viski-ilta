@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireAdmin, getUserName } from '../lib/auth';
+import { requireTaster, isAdmin, getUserName } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,6 +16,7 @@ interface EventDocument {
   date: string;
   location: string;
   createdBy: string;
+  createdByUserId: string;
   createdAt: string;
   updatedAt: string;
   whiskeyCount: number;
@@ -43,7 +44,7 @@ async function createEvent(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAdmin(req);
+    const principal = requireTaster(req);
     const body = (await req.json()) as Partial<EventDocument>;
 
     if (!body.name || !body.date || !body.location) {
@@ -63,6 +64,7 @@ async function createEvent(
       date: body.date,
       location: body.location,
       createdBy: getUserName(principal),
+      createdByUserId: principal.userId,
       createdAt: now,
       updatedAt: now,
       whiskeyCount: 0,
@@ -92,15 +94,58 @@ async function getEvent(
   }
 }
 
+// PATCH /api/events/{eventId}
+async function updateEvent(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const principal = requireTaster(req);
+    const eventId = req.params.eventId;
+    const container = getContainer('events');
+    const { resource } = await container.item(eventId, eventId).read();
+    if (!resource) return notFound('Event not found');
+
+    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+      return {
+        status: 403,
+        body: JSON.stringify({ error: 'Only the creator or admin can update this event' }),
+      };
+    }
+
+    const body = (await req.json()) as Partial<EventDocument>;
+    const updated: EventDocument = {
+      ...resource,
+      ...body,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const { resource: updatedResource } = await container.item(eventId, eventId).replace(updated);
+    return ok(updatedResource);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 // DELETE /api/events/{eventId}
 async function deleteEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    requireAdmin(req);
+    const principal = requireTaster(req);
     const eventId = req.params.eventId;
     const container = getContainer('events');
+    const { resource } = await container.item(eventId, eventId).read();
+    if (!resource) return notFound('Event not found');
+
+    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+      return {
+        status: 403,
+        body: JSON.stringify({ error: 'Only the creator or admin can delete this event' }),
+      };
+    }
+
     await container.item(eventId, eventId).delete();
     return noContent();
   } catch (error) {
@@ -125,6 +170,12 @@ app.http('getEvent', {
   authLevel: 'anonymous',
   route: 'events/{eventId}',
   handler: getEvent,
+});
+app.http('updateEvent', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'events/{eventId}',
+  handler: updateEvent,
 });
 app.http('deleteEvent', {
   methods: ['DELETE'],

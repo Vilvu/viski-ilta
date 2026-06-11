@@ -38,6 +38,18 @@ export function requireAdmin(request: HttpRequest): ClientPrincipal {
   return principal;
 }
 
+export function requireTaster(request: HttpRequest): ClientPrincipal {
+  const principal = requireAuth(request);
+  if (!principal.userRoles.includes('taster') && !principal.userRoles.includes('admin')) {
+    throw { statusCode: 403, message: 'Taster role required' };
+  }
+  return principal;
+}
+
+export function isAdmin(principal: ClientPrincipal): boolean {
+  return principal.userRoles.includes('admin');
+}
+
 export function getUserName(principal: ClientPrincipal): string {
   const nameClaim = (principal.claims ?? []).find((c) => c.typ === 'name');
   return nameClaim?.val ?? principal.userDetails;

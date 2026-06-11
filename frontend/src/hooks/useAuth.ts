@@ -6,6 +6,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isTaster: boolean;
 }
 
 // Azure Static Web Apps provides /.auth/me endpoint
@@ -25,6 +26,7 @@ export function useAuth(): AuthState {
     isLoading: true,
     isAuthenticated: false,
     isAdmin: false,
+    isTaster: false,
   });
 
   useEffect(() => {
@@ -45,6 +47,8 @@ export function useAuth(): AuthState {
             claims?.find((c) => c.typ === 'preferred_username') ??
             claims?.find((c) => c.typ === 'upn');
           const isAdmin = userRoles.includes('admin');
+          const isTaster = userRoles.includes('taster') || isAdmin;
+          const role = isAdmin ? 'admin' : isTaster ? 'taster' : 'user';
 
           // Detect Azure SWA masked userDetails (e.g. "vil*****") —
           // a few real characters followed by a run of asterisks.
@@ -66,14 +70,15 @@ export function useAuth(): AuthState {
               'useAuth: /.auth/me still returned masked userDetails after all retries. ' +
                 'Azure SWA may have changed its response format.'
             );
-            if (!cancelled) {
-              setAuthState({
-                user: null,
-                isLoading: false,
-                isAuthenticated: false,
-                isAdmin: false,
-              });
-            }
+          if (!cancelled) {
+            setAuthState({
+              user: null,
+              isLoading: false,
+              isAuthenticated: false,
+              isAdmin: false,
+              isTaster: false,
+            });
+          }
             return;
           }
 
@@ -83,11 +88,12 @@ export function useAuth(): AuthState {
                 id: userId,
                 email: userDetails,
                 name: nameClaim?.val ?? userDetails,
-                role: isAdmin ? 'admin' : 'user',
+                role,
               },
               isLoading: false,
               isAuthenticated: true,
               isAdmin,
+              isTaster,
             });
           }
         } else {
@@ -97,6 +103,7 @@ export function useAuth(): AuthState {
               isLoading: false,
               isAuthenticated: false,
               isAdmin: false,
+              isTaster: false,
             });
           }
         }
@@ -107,6 +114,7 @@ export function useAuth(): AuthState {
             isLoading: false,
             isAuthenticated: false,
             isAdmin: false,
+            isTaster: false,
           });
         }
       }

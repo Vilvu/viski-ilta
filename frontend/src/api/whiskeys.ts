@@ -11,6 +11,17 @@ export interface CreateWhiskeyInput {
   description?: string;
 }
 
+export interface UpdateWhiskeyInput {
+  eventId: string;
+  whiskeyId: string;
+  name?: string;
+  distillery?: string;
+  region?: string;
+  age?: number;
+  abv?: number;
+  description?: string;
+}
+
 export const whiskeysApi = {
   getByEvent: async (eventId: string): Promise<Whiskey[]> => {
     const response = await apiClient.get<ApiResponse<Whiskey[]>>(
@@ -43,5 +54,13 @@ export const whiskeysApi = {
     whiskeyId: string;
   }): Promise<void> => {
     await apiClient.delete(`/events/${eventId}/whiskeys/${whiskeyId}`);
+  },
+
+  update: async ({ eventId, whiskeyId, ...body }: UpdateWhiskeyInput): Promise<Whiskey> => {
+    const response = await apiClient.patch<ApiResponse<Whiskey>>(
+      `/events/${eventId}/whiskeys/${whiskeyId}`,
+      body,
+    );
+    return response.data.data;
   },
 };

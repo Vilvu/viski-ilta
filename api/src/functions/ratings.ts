@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireAuth, getUserName } from '../lib/auth';
+import { requireTaster, getUserName } from '../lib/auth';
 import { ok, noContent, notFound, handleError } from '../lib/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -48,7 +48,7 @@ async function upsertMyRating(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAuth(req);
+    const principal = requireTaster(req);
     const whiskeyId = req.params.whiskeyId;
     const body = (await req.json()) as {
       eventId: string;
@@ -144,7 +144,7 @@ async function deleteMyRating(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAuth(req);
+    const principal = requireTaster(req);
     const whiskeyId = req.params.whiskeyId;
 
     const ratingsContainer = getContainer('ratings');

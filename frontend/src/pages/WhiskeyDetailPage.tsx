@@ -16,7 +16,7 @@ export default function WhiskeyDetailPage() {
   }>();
   const { data: whiskey, isLoading } = useWhiskey(eventId!, whiskeyId!);
   const { data: ratings } = useRatings(whiskeyId!);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isTaster, user } = useAuth();
   const upsertRating = useUpsertRating();
   const deleteRating = useDeleteRating();
   const [score, setScore] = useState<number>(0);
@@ -76,7 +76,7 @@ export default function WhiskeyDetailPage() {
         </div>
       </div>
 
-      {isAuthenticated && (
+      {isAuthenticated && isTaster && (
         <div className={styles.myRatingSection}>
           <h2>Your Rating</h2>
           {myRating && !editMode ? (
@@ -154,6 +154,12 @@ export default function WhiskeyDetailPage() {
               </div>
             </form>
           )}
+        </div>
+      )}
+
+      {isAuthenticated && !isTaster && (
+        <div className={styles.signInPrompt}>
+          <p>Taster role required to submit ratings.</p>
         </div>
       )}
 

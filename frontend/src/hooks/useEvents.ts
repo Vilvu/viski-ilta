@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { eventsApi } from '@/api/events';
+import { eventsApi, type UpdateEventInput } from '@/api/events';
 
 export function useEvents() {
   return useQuery({
@@ -32,6 +32,18 @@ export function useDeleteEvent() {
     mutationFn: eventsApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+  });
+}
+
+export function useUpdateEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateEventInput }) =>
+      eventsApi.update(id, input),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', variables.id] });
     },
   });
 }

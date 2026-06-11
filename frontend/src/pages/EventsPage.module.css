@@ -100,6 +100,21 @@
   cursor: not-allowed;
 }
 
+.cancelBtn {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 0.6rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.cancelBtn:hover {
+  border-color: var(--color-text-muted);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -160,7 +175,7 @@
 .deleteBtn {
   position: absolute;
   top: 0.75rem;
-  right: 0.75rem;
+  right: 3.5rem;
   background: none;
   border: 1px solid var(--color-error);
   color: var(--color-error);
@@ -172,6 +187,28 @@
 .deleteBtn:hover {
   background-color: var(--color-error);
   color: white;
+}
+
+.editBtn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: none;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--border-radius);
+  font-size: 0.8rem;
+}
+
+.editBtn:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.cardActions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .loading, .error, .empty {
