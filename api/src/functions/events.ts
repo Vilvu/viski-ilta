@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireTaster, isAdmin, getUserName } from '../lib/auth';
+import { requireTaster, isAdmin, getUserDisplayName } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -57,13 +57,14 @@ async function createEvent(
     }
 
     const now = new Date().toISOString();
+    const displayName = await getUserDisplayName(principal);
     const event: EventDocument = {
       id: uuidv4(),
       name: body.name,
       description: body.description ?? '',
       date: body.date,
       location: body.location,
-      createdBy: getUserName(principal),
+      createdBy: displayName,
       createdByUserId: principal.userId,
       createdAt: now,
       updatedAt: now,

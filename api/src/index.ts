@@ -4,5 +4,6 @@ import './polyfill';
 // Function registrations
 import './functions/events';
 import './functions/ratings';
+import './functions/users';
 import './functions/whiskeys';
 import './functions/health';

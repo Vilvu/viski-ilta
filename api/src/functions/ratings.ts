@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireTaster, getUserName } from '../lib/auth';
+import { requireTaster, getUserDisplayName } from '../lib/auth';
 import { ok, noContent, notFound, handleError } from '../lib/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -83,8 +83,10 @@ async function upsertMyRating(
     if (existing.length > 0) {
       // Update existing
       const existingRating = existing[0] as RatingDocument;
+      const displayName = await getUserDisplayName(principal);
       rating = {
         ...existingRating,
+        userName: displayName,
         score: body.score,
         notes: body.notes,
         updatedAt: now,
@@ -92,12 +94,13 @@ async function upsertMyRating(
       await ratingsContainer.item(existingRating.id, whiskeyId).replace(rating);
     } else {
       // Create new
+      const displayName = await getUserDisplayName(principal);
       rating = {
         id: uuidv4(),
         whiskeyId,
         eventId: body.eventId,
         userId: principal.userId,
-        userName: getUserName(principal),
+        userName: displayName,
         score: body.score,
         notes: body.notes,
         createdAt: now,

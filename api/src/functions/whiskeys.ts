@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireTaster, isAdmin, getClientPrincipal, getUserName } from '../lib/auth';
+import { requireTaster, isAdmin, getClientPrincipal, getUserDisplayName } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -96,6 +96,7 @@ async function createWhiskey(
     }
 
     const now = new Date().toISOString();
+    const displayName = await getUserDisplayName(principal);
     const whiskey: WhiskeyDocument = {
       id: uuidv4(),
       eventId,
@@ -105,7 +106,7 @@ async function createWhiskey(
       age: body.age,
       abv: body.abv,
       description: body.description,
-      createdBy: getUserName(principal),
+      createdBy: displayName,
       createdByUserId: principal.userId,
       createdAt: now,
       updatedAt: now,

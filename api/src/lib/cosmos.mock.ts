@@ -390,6 +390,7 @@ function initializeSeedData() {
 mockStorage.set('events', new Map());
 mockStorage.set('whiskeys', new Map());
 mockStorage.set('ratings', new Map());
+mockStorage.set('users', new Map());
 initializeSeedData();
 
 export function getMockContainer(containerName: string): MockContainer {

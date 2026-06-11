@@ -1,4 +1,5 @@
 import { HttpRequest } from '@azure/functions';
+import { getContainer } from './cosmos';
 
 export interface ClientPrincipal {
   userId: string;
@@ -53,4 +54,26 @@ export function isAdmin(principal: ClientPrincipal): boolean {
 export function getUserName(principal: ClientPrincipal): string {
   const nameClaim = (principal.claims ?? []).find((c) => c.typ === 'name');
   return nameClaim?.val ?? principal.userDetails;
+}
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getUserDisplayName(
+  principal: ClientPrincipal,
+): Promise<string> {
+  try {
+    const container = getContainer('users');
+    const { resource } = await container.item(principal.userId, principal.userId).read();
+    if (resource) {
+      return resource.displayName;
+    }
+  } catch {
+    // Profile not found or error reading, fall back to OAuth name
+  }
+  return getUserName(principal);
 }
