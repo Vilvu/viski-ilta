@@ -69,7 +69,7 @@ infra/
    > **Important:** Re-deploy now with the real key so the SWA app settings are populated with `COSMOS_KEY`:
    > ```bash
    > # For development environment
-   > COSMOS_KEY=$(az cosmosdb keys list --name cosmos-whiskyapp-123-dev --resource-group rg-whiskyapp --query primaryMasterKey --output tsv)
+   > COSMOS_KEY=$(az cosmosdb keys list --name cosmos-whiskyapp-123-dev --resource-group rg-whiskyapp-dev --query primaryMasterKey --output tsv)
    > az deployment sub create \
    >   --name "whiskyapp-infra-dev" \
    >   --location northeurope \
@@ -78,7 +78,7 @@ infra/
    >   --parameters cosmosKey="$COSMOS_KEY"
    >
    > # For production environment
-   > COSMOS_KEY=$(az cosmosdb keys list --name cosmos-whiskyapp-prod --resource-group rg-whiskyapp --query primaryMasterKey --output tsv)
+   > COSMOS_KEY=$(az cosmosdb keys list --name cosmos-whiskyapp-prod --resource-group rg-whiskyapp-prod --query primaryMasterKey --output tsv)
    > az deployment sub create \
    >   --name "whiskyapp-infra-prod" \
    >   --location northeurope \

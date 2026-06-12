@@ -28,7 +28,9 @@ resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
   }
 }
 
-resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = {
+// Only deploy app settings when cosmosKey is provided.
+// Deploying with an empty key would silently overwrite a previously correct key.
+resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = if (!empty(cosmosKey)) {
   parent: swa
   name: 'appsettings'
   properties: {

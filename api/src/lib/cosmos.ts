@@ -12,7 +12,8 @@ export function getDatabase(): Database {
 
   if (!endpoint || !key) {
     throw new Error(
-      'COSMOS_ENDPOINT and COSMOS_KEY environment variables are required',
+      `COSMOS_ENDPOINT and COSMOS_KEY environment variables are required. ` +
+      `COSMOS_ENDPOINT=${endpoint ? 'set' : 'MISSING'}, COSMOS_KEY=${key ? 'set' : 'MISSING'}`,
     );
   }
 
