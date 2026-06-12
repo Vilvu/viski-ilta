@@ -55,3 +55,10 @@ export function useUpdateWhiskey() {
     },
   });
 }
+
+export function useAllWhiskeys(params?: { top?: number; skip?: number }) {
+  return useQuery({
+    queryKey: ['whiskeys', 'ranking', params],
+    queryFn: () => whiskeysApi.getAll(params),
+  });
+}

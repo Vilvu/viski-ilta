@@ -63,4 +63,15 @@ export const whiskeysApi = {
     );
     return response.data.data;
   },
+
+  getAll: async (params?: { top?: number; skip?: number }): Promise<Whiskey[]> => {
+    const queryParams = new URLSearchParams();
+    if (params?.top !== undefined) queryParams.append('top', params.top.toString());
+    if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
+    
+    const response = await apiClient.get<ApiResponse<Whiskey[]>>(
+      `/whiskeys?${queryParams.toString()}`
+    );
+    return response.data.data;
+  },
 };

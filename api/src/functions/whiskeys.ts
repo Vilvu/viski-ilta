@@ -26,6 +26,35 @@ interface WhiskeyDocument {
   ratingCount: number;
 }
 
+// GET /api/whiskeys
+async function getAllWhiskeys(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    // Parse query parameters for pagination
+    const topParam = req.query.get('top');
+    const skipParam = req.query.get('skip');
+    const top = topParam ? Math.min(parseInt(topParam) || 100, 1000) : 100;
+    const skip = skipParam ? parseInt(skipParam) || 0 : 0;
+
+    const container = getContainer('whiskeys');
+    const querySpec = {
+      query: `SELECT c.id, c.name, c.distillery, c.region, c.age, c.abv, c.averageRating, c.ratingCount, c.eventId FROM c ORDER BY c.averageRating DESC OFFSET @skip LIMIT @top`,
+      parameters: [
+        { name: '@skip', value: skip },
+        { name: '@top', value: top }
+      ]
+    };
+
+    const { resources } = await container.items.query(querySpec).fetchAll();
+
+    return ok(resources);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 // GET /api/events/{eventId}/whiskeys
 async function getWhiskeys(
   req: HttpRequest,
@@ -263,4 +292,11 @@ app.http('updateWhiskey', {
   authLevel: 'anonymous',
   route: 'events/{eventId}/whiskeys/{whiskeyId}',
   handler: updateWhiskey,
+});
+
+app.http('getAllWhiskeys', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'whiskeys',
+  handler: getAllWhiskeys,
 });

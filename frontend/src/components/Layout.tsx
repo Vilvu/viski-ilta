@@ -21,28 +21,29 @@ export default function Layout() {
           <Link to="/" className={styles.logo}>
             🥃 Whisky Tasting
           </Link>
-          <nav className={styles.nav}>
-            <Link to="/">Events</Link>
-            {!isLoading &&
-              (isAuthenticated ? (
-                <div className={styles.userMenu}>
-                  <span className={styles.userName}>{displayName}</span>
-                  <button
-                    type="button"
-                    className={styles.editBtn}
-                    onClick={() => setShowEditModal(true)}
-                    title="Edit display name"
-                  >
-                    ✏️
-                  </button>
-                  <a href="/.auth/logout">Sign out</a>
-                </div>
-              ) : (
-                <a href="/.auth/login/aad" className={styles.signInBtn}>
-                  Sign in with Microsoft
-                </a>
-              ))}
-          </nav>
+<nav className={styles.nav}>
+  <Link to="/">Events</Link>
+  <Link to="/ranking">Ranking</Link>
+  {!isLoading &&
+    (isAuthenticated ? (
+      <div className={styles.userMenu}>
+        <span className={styles.userName}>{displayName}</span>
+        <button
+          type="button"
+          className={styles.editBtn}
+          onClick={() => setShowEditModal(true)}
+          title="Edit display name"
+        >
+          ✏️
+        </button>
+        <a href="/.auth/logout">Sign out</a>
+      </div>
+    ) : (
+      <a href="/.auth/login/aad" className={styles.signInBtn}>
+        Sign in with Microsoft
+      </a>
+    ))}
+</nav>
         </div>
       </header>
       <main className={styles.main}>
