@@ -168,10 +168,7 @@ export default function EventDetailPage() {
         </div>
         <div className={styles.headerActions}>
           {canEditEvent() && (
-            <button
-              className={styles.editBtn}
-              onClick={startEditEvent}
-            >
+            <button className={styles.editBtn} onClick={startEditEvent}>
               Edit Event
             </button>
           )}
@@ -380,7 +377,10 @@ export default function EventDetailPage() {
                 required
                 value={editWhiskeyForm.distillery}
                 onChange={(e) =>
-                  setEditWhiskeyForm((f) => ({ ...f, distillery: e.target.value }))
+                  setEditWhiskeyForm((f) => ({
+                    ...f,
+                    distillery: e.target.value,
+                  }))
                 }
                 placeholder="e.g. Glenfiddich"
               />
@@ -436,7 +436,10 @@ export default function EventDetailPage() {
             <textarea
               value={editWhiskeyForm.description}
               onChange={(e) =>
-                setEditWhiskeyForm((f) => ({ ...f, description: e.target.value }))
+                setEditWhiskeyForm((f) => ({
+                  ...f,
+                  description: e.target.value,
+                }))
               }
               rows={2}
               placeholder="Tasting notes, style..."

@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useEvents, useCreateEvent, useDeleteEvent, useUpdateEvent } from '@/hooks/useEvents';
+import {
+  useEvents,
+  useCreateEvent,
+  useDeleteEvent,
+  useUpdateEvent,
+} from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import type { CreateEventInput, UpdateEventInput } from '@/api/events';
 import type { Event } from '@/types';
@@ -207,7 +212,12 @@ export default function EventsPage() {
               className={styles.cancelBtn}
               onClick={() => {
                 setEditingEventId(null);
-                setEditForm({ name: '', description: '', date: '', location: '' });
+                setEditForm({
+                  name: '',
+                  description: '',
+                  date: '',
+                  location: '',
+                });
               }}
             >
               Cancel

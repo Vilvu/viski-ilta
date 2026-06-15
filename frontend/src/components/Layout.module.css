@@ -45,17 +45,50 @@
   padding: 0.4rem;
 }
 
-.mobileMenu {
-  display: none;
-  flex-direction: column;
-  background-color: var(--color-primary-dark);
-  padding: 1rem;
-  gap: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.05);
+  z-index: 99;
 }
 
-.mobileMenu a,
-.mobileMenu button {
+.popout {
+  position: absolute;
+  top: 64px;
+  right: 0.5rem;
+  min-width: 200px;
+  max-width: 80vw;
+  background-color: var(--color-primary-dark);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  z-index: 110;
+  transform-origin: top right;
+  animation: popoutIn 0.14s ease-out;
+}
+
+@keyframes popoutIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popout {
+    animation: none;
+  }
+}
+
+.popout a,
+.popout button {
   color: white;
   font-size: 1rem;
   text-decoration: none;
@@ -63,10 +96,17 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  padding: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
 }
 
-.mobileMenuDivider {
+.popout a:hover,
+.popout button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  text-decoration: none;
+}
+
+.popoutDivider {
   border: none;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
   margin: 0.25rem 0;
@@ -175,9 +215,12 @@
   .nav {
     display: none;
   }
+}
 
-  .mobileMenu.open {
-    display: flex;
+@media (min-width: 768px) {
+  .popout,
+  .backdrop {
+    display: none;
   }
 }
 

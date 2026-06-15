@@ -2,16 +2,20 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAllWhiskeys } from '@/hooks/useWhiskeys';
 import { useAuth } from '@/hooks/useAuth';
-import type { Whiskey } from '@/types';
+
 import styles from './RankingPage.module.css';
 
 const PAGE_SIZE = 50;
 
 export default function RankingPage() {
   const [pageIndex, setPageIndex] = useState(0);
-  const { data: whiskeys, isLoading, error } = useAllWhiskeys({
+  const {
+    data: whiskeys,
+    isLoading,
+    error,
+  } = useAllWhiskeys({
     top: PAGE_SIZE,
-    skip: pageIndex * PAGE_SIZE
+    skip: pageIndex * PAGE_SIZE,
   });
   const { isTaster } = useAuth();
 
@@ -25,7 +29,8 @@ export default function RankingPage() {
     setPageIndex(pageIndex + 1);
   };
 
-  if (isLoading) return <div className={styles.loading}>Loading rankings...</div>;
+  if (isLoading)
+    return <div className={styles.loading}>Loading rankings...</div>;
   if (error) return <div className={styles.error}>Error loading rankings.</div>;
 
   return (
@@ -40,14 +45,16 @@ export default function RankingPage() {
       ) : (
         <>
           <div className={styles.list}>
-            {whiskeys?.map((whiskey, index) => (
+            {whiskeys?.map((whiskey, index) =>
               isTaster ? (
                 <Link
                   key={whiskey.id}
                   to={`/events/${whiskey.eventId}/whiskeys/${whiskey.id}`}
                   className={styles.whiskeyCard}
                 >
-                  <div className={styles.rankNumber}>{pageIndex * PAGE_SIZE + index + 1}</div>
+                  <div className={styles.rankNumber}>
+                    {pageIndex * PAGE_SIZE + index + 1}
+                  </div>
                   <div className={styles.whiskeyInfo}>
                     <h3>{whiskey.name}</h3>
                     <p className={styles.whiskeyMeta}>
@@ -66,13 +73,16 @@ export default function RankingPage() {
                       </span>
                     </div>
                     <div className={styles.ratingCount}>
-                      ({whiskey.ratingCount} {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
+                      ({whiskey.ratingCount}{' '}
+                      {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
                     </div>
                   </div>
                 </Link>
               ) : (
                 <div key={whiskey.id} className={styles.whiskeyCard}>
-                  <div className={styles.rankNumber}>{pageIndex * PAGE_SIZE + index + 1}</div>
+                  <div className={styles.rankNumber}>
+                    {pageIndex * PAGE_SIZE + index + 1}
+                  </div>
                   <div className={styles.whiskeyInfo}>
                     <h3>{whiskey.name}</h3>
                     <p className={styles.whiskeyMeta}>
@@ -91,26 +101,25 @@ export default function RankingPage() {
                       </span>
                     </div>
                     <div className={styles.ratingCount}>
-                      ({whiskey.ratingCount} {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
+                      ({whiskey.ratingCount}{' '}
+                      {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
                     </div>
                   </div>
                 </div>
-              )
-            ))}
+              ),
+            )}
           </div>
-          
+
           <div className={styles.pagination}>
-            <button 
-              onClick={handlePrevPage} 
+            <button
+              onClick={handlePrevPage}
               disabled={pageIndex === 0}
               className={styles.paginationBtn}
             >
               Previous
             </button>
-            <span className={styles.pageInfo}>
-              Page {pageIndex + 1}
-            </span>
-            <button 
+            <span className={styles.pageInfo}>Page {pageIndex + 1}</span>
+            <button
               onClick={handleNextPage}
               disabled={!whiskeys || whiskeys.length < PAGE_SIZE}
               className={styles.paginationBtn}

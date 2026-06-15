@@ -56,7 +56,11 @@ export const whiskeysApi = {
     await apiClient.delete(`/events/${eventId}/whiskeys/${whiskeyId}`);
   },
 
-  update: async ({ eventId, whiskeyId, ...body }: UpdateWhiskeyInput): Promise<Whiskey> => {
+  update: async ({
+    eventId,
+    whiskeyId,
+    ...body
+  }: UpdateWhiskeyInput): Promise<Whiskey> => {
     const response = await apiClient.patch<ApiResponse<Whiskey>>(
       `/events/${eventId}/whiskeys/${whiskeyId}`,
       body,
@@ -64,13 +68,18 @@ export const whiskeysApi = {
     return response.data.data;
   },
 
-  getAll: async (params?: { top?: number; skip?: number }): Promise<Whiskey[]> => {
+  getAll: async (params?: {
+    top?: number;
+    skip?: number;
+  }): Promise<Whiskey[]> => {
     const queryParams = new URLSearchParams();
-    if (params?.top !== undefined) queryParams.append('top', params.top.toString());
-    if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
-    
+    if (params?.top !== undefined)
+      queryParams.append('top', params.top.toString());
+    if (params?.skip !== undefined)
+      queryParams.append('skip', params.skip.toString());
+
     const response = await apiClient.get<ApiResponse<Whiskey[]>>(
-      `/whiskeys?${queryParams.toString()}`
+      `/whiskeys?${queryParams.toString()}`,
     );
     return response.data.data;
   },

@@ -7,7 +7,10 @@ interface EditDisplayNameModalProps {
   onClose: () => void;
 }
 
-export default function EditDisplayNameModal({ currentName, onClose }: EditDisplayNameModalProps) {
+export default function EditDisplayNameModal({
+  currentName,
+  onClose,
+}: EditDisplayNameModalProps) {
   const [displayName, setDisplayName] = useState(currentName);
   const [error, setError] = useState<string>('');
   const updateMutation = useUpdateDisplayName();
@@ -43,7 +46,10 @@ export default function EditDisplayNameModal({ currentName, onClose }: EditDispl
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <h2>Update Display Name</h2>
-        <p>Change the name that other users see when you rate whiskeys or create events.</p>
+        <p>
+          Change the name that other users see when you rate whiskeys or create
+          events.
+        </p>
         <form onSubmit={handleSubmit}>
           <div className={styles.formGroup}>
             <label htmlFor="displayName">Display Name</label>
@@ -59,7 +65,11 @@ export default function EditDisplayNameModal({ currentName, onClose }: EditDispl
           </div>
           {error && <div className={styles.error}>{error}</div>}
           <div className={styles.actions}>
-            <button type="button" onClick={onClose} disabled={updateMutation.isPending}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={updateMutation.isPending}
+            >
               Cancel
             </button>
             <button type="submit" disabled={updateMutation.isPending}>

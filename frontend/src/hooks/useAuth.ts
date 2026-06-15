@@ -55,7 +55,8 @@ export function useAuth(): AuthState {
           // Uses a specific pattern to avoid false positives on Entra ID
           // UPNs/display names that may legitimately contain a single '*'.
           const isDetailsMasked =
-            typeof userDetails === 'string' && /^.{1,5}\*{2,}$/.test(userDetails);
+            typeof userDetails === 'string' &&
+            /^.{1,5}\*{2,}$/.test(userDetails);
 
           if (isDetailsMasked && retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -68,17 +69,17 @@ export function useAuth(): AuthState {
             // rather than rendering a corrupted username like "vil*****".
             console.warn(
               'useAuth: /.auth/me still returned masked userDetails after all retries. ' +
-                'Azure SWA may have changed its response format.'
+                'Azure SWA may have changed its response format.',
             );
-          if (!cancelled) {
-            setAuthState({
-              user: null,
-              isLoading: false,
-              isAuthenticated: false,
-              isAdmin: false,
-              isTaster: false,
-            });
-          }
+            if (!cancelled) {
+              setAuthState({
+                user: null,
+                isLoading: false,
+                isAuthenticated: false,
+                isAdmin: false,
+                isTaster: false,
+              });
+            }
             return;
           }
 

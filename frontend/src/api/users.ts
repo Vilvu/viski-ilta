@@ -8,7 +8,8 @@ export interface UserProfile {
 export const usersApi = {
   getMe: async (): Promise<UserProfile | null> => {
     try {
-      const response = await apiClient.get<ApiResponse<UserProfile>>('/users/me');
+      const response =
+        await apiClient.get<ApiResponse<UserProfile>>('/users/me');
       return response.data.data;
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'response' in error) {
@@ -22,7 +23,10 @@ export const usersApi = {
   },
 
   updateMe: async (displayName: string): Promise<UserProfile> => {
-    const response = await apiClient.put<ApiResponse<UserProfile>>('/users/me', { displayName });
+    const response = await apiClient.put<ApiResponse<UserProfile>>(
+      '/users/me',
+      { displayName },
+    );
     return response.data.data;
   },
 };

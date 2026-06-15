@@ -36,7 +36,10 @@ export const eventsApi = {
   },
 
   update: async (id: string, input: UpdateEventInput): Promise<Event> => {
-    const response = await apiClient.patch<ApiResponse<Event>>(`/events/${id}`, input);
+    const response = await apiClient.patch<ApiResponse<Event>>(
+      `/events/${id}`,
+      input,
+    );
     return response.data.data;
   },
 };

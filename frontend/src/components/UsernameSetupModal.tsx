@@ -7,7 +7,10 @@ interface UsernameSetupModalProps {
   onClose: () => void;
 }
 
-export default function UsernameSetupModal({ defaultName, onClose }: UsernameSetupModalProps) {
+export default function UsernameSetupModal({
+  defaultName,
+  onClose,
+}: UsernameSetupModalProps) {
   const [displayName, setDisplayName] = useState(defaultName);
   const [error, setError] = useState<string>('');
   const updateMutation = useUpdateDisplayName();
@@ -43,7 +46,10 @@ export default function UsernameSetupModal({ defaultName, onClose }: UsernameSet
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <h2>Choose Your Display Name</h2>
-        <p>Set a display name that other users will see when you rate whiskeys or create events.</p>
+        <p>
+          Set a display name that other users will see when you rate whiskeys or
+          create events.
+        </p>
         <form onSubmit={handleSubmit}>
           <div className={styles.formGroup}>
             <label htmlFor="displayName">Display Name</label>
