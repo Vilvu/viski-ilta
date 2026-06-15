@@ -31,9 +31,45 @@
   text-decoration: none;
 }
 
-.logo:hover {
+.logoText {
+  /* shown by default on desktop */
+}
+
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.4rem;
+}
+
+.mobileMenu {
+  display: none;
+  flex-direction: column;
+  background-color: var(--color-primary-dark);
+  padding: 1rem;
+  gap: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.mobileMenu a,
+.mobileMenu button {
+  color: white;
+  font-size: 1rem;
   text-decoration: none;
-  opacity: 0.9;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 0.5rem 0;
+}
+
+.mobileMenuDivider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 0.25rem 0;
 }
 
 .nav {
@@ -61,6 +97,38 @@
 .userName {
   font-size: 0.9rem;
   opacity: 0.9;
+}
+
+.userMenu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.userMenu .userName {
+  margin-right: 0.5rem;
+}
+
+/* For mobile menu, ensure proper alignment */
+@media (max-width: 767px) {
+  .userMenu .userName {
+    display: none;
+  }
+  
+  .mobileMenu .userName {
+    margin-right: 0;
+    margin-left: 0;
+  }
+}
+
+/* Additional alignment for header content */
+.headerContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
 }
 
 .editBtn {
@@ -97,6 +165,20 @@
   width: 100%;
   margin: 0 auto;
   padding: 2rem 1rem;
+}
+
+@media (max-width: 767px) {
+  .hamburger {
+    display: block;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .mobileMenu.open {
+    display: flex;
+  }
 }
 
 .footer {

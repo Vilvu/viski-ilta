@@ -112,11 +112,17 @@ class MockContainer {
     if (selectMatch) {
       const selectClause = selectMatch[1].trim();
       if (selectClause !== '*') {
-        // Extract field name from "c.fieldName"
-        const fieldMatch = selectClause.match(/c\.(\w+)/);
-        if (fieldMatch) {
-          const field = fieldMatch[1];
-          results = results.map((doc) => ({ [field]: doc[field] }));
+        // Extract all "c.fieldName" tokens from the SELECT clause
+        const fieldMatches = [...selectClause.matchAll(/c\.(\w+)/g)];
+        if (fieldMatches.length > 0) {
+          const fields = fieldMatches.map((m) => m[1]);
+          results = results.map((doc) => {
+            const projected: Record<string, any> = {};
+            for (const field of fields) {
+              projected[field] = doc[field];
+            }
+            return projected;
+          });
         }
       }
     }

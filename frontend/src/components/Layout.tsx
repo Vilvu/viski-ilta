@@ -11,6 +11,7 @@ export default function Layout() {
   const { data: profile, isLoading: profileLoading, hasProfile } = useUserProfile();
   const [showEditModal, setShowEditModal] = useState(false);
   const [setupDismissed, setSetupDismissed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const displayName = profile?.displayName ?? user?.name ?? '';
 
@@ -19,15 +20,15 @@ export default function Layout() {
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <Link to="/" className={styles.logo}>
-            🥃 Whisky Tasting
+            🥃<span className={styles.logoText}>Whisky Tasting</span>
           </Link>
-<nav className={styles.nav}>
+          <nav className={styles.nav}>
   <Link to="/">Events</Link>
   <Link to="/ranking">Ranking</Link>
   {!isLoading &&
     (isAuthenticated ? (
       <div className={styles.userMenu}>
-        <span className={styles.userName}>{displayName}</span>
+        {!isLoading && isAuthenticated && <span className={styles.userName}>{displayName}</span>}
         <button
           type="button"
           className={styles.editBtn}
@@ -39,11 +40,49 @@ export default function Layout() {
         <a href="/.auth/logout">Sign out</a>
       </div>
     ) : (
-      <a href="/.auth/login/aad" className={styles.signInBtn}>
-        Sign in with Microsoft
-      </a>
+      <>
+        {!isLoading && isAuthenticated && <span className={styles.userName}>{displayName}</span>}
+        <a href="/.auth/login/aad" className={styles.signInBtn}>
+          Sign in
+        </a>
+      </>
     ))}
 </nav>
+          <button
+            className={styles.hamburger}
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+          >
+            ☰
+          </button>
+        </div>
+        <div className={`${styles.mobileMenu} ${menuOpen ? styles.open : ''}`}>
+          <a href="/" onClick={() => setMenuOpen(false)}>Events</a>
+          <a href="/ranking" onClick={() => setMenuOpen(false)}>Ranking</a>
+          {!isLoading &&
+            (isAuthenticated ? (
+              <>
+                <hr className={styles.mobileMenuDivider} />
+                {!isLoading && isAuthenticated && <span className={styles.userName}>{displayName}</span>}
+                <button
+                  type="button"
+                  className={styles.editBtn}
+                  onClick={() => {
+                    setShowEditModal(true);
+                    setMenuOpen(false);
+                  }}
+                  title="Edit display name"
+                >
+                  ✏️ Edit name
+                </button>
+                <a href="/.auth/logout" onClick={() => setMenuOpen(false)}>Sign out</a>
+              </>
+            ) : (
+              <a href="/.auth/login/aad" className={styles.signInBtn} onClick={() => setMenuOpen(false)}>
+                Sign in
+              </a>
+            ))}
         </div>
       </header>
       <main className={styles.main}>

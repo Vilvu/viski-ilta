@@ -40,7 +40,7 @@
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
   gap: 1rem;
   align-items: center;
   padding: 1rem;
@@ -49,6 +49,12 @@
 
 .whiskeyCard:hover {
   box-shadow: var(--shadow-lg);
+}
+
+a.whiskeyCard {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .rankNumber {
@@ -110,22 +116,6 @@
 .ratingCount {
   font-size: 0.8rem;
   color: var(--color-text-muted);
-}
-
-.detailLink {
-  background-color: var(--color-primary);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.detailLink:hover {
-  background-color: var(--color-primary-dark);
 }
 
 .pagination {

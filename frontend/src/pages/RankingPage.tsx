@@ -41,45 +41,61 @@ export default function RankingPage() {
         <>
           <div className={styles.list}>
             {whiskeys?.map((whiskey, index) => (
-              <div key={whiskey.id} className={styles.whiskeyCard}>
-                <div className={styles.rankNumber}>{pageIndex * PAGE_SIZE + index + 1}</div>
-                <div className={styles.whiskeyInfo}>
-                  <h3>{whiskey.name}</h3>
-                  <p className={styles.whiskeyMeta}>
-                    {whiskey.distillery} · {whiskey.region}
-                    {whiskey.age ? ` · ${whiskey.age}yr` : ''}
-                    {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
-                  </p>
-                </div>
-                <div className={styles.ratings}>
-                  <div className={styles.ratingBadge}>
-                    <span className={styles.ratingLabel}>Avg</span>
-                    <span className={styles.ratingValue}>
-                      {whiskey.ratingCount > 0
-                        ? whiskey.averageRating.toFixed(1)
-                        : '—'}
-                    </span>
+              isTaster ? (
+                <Link
+                  key={whiskey.id}
+                  to={`/events/${whiskey.eventId}/whiskeys/${whiskey.id}`}
+                  className={styles.whiskeyCard}
+                >
+                  <div className={styles.rankNumber}>{pageIndex * PAGE_SIZE + index + 1}</div>
+                  <div className={styles.whiskeyInfo}>
+                    <h3>{whiskey.name}</h3>
+                    <p className={styles.whiskeyMeta}>
+                      {whiskey.distillery} · {whiskey.region}
+                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
+                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
+                    </p>
                   </div>
-                  <div className={styles.ratingCount}>
-                    ({whiskey.ratingCount} {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
+                  <div className={styles.ratings}>
+                    <div className={styles.ratingBadge}>
+                      <span className={styles.ratingLabel}>Avg</span>
+                      <span className={styles.ratingValue}>
+                        {whiskey.ratingCount > 0
+                          ? whiskey.averageRating.toFixed(1)
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.ratingCount}>
+                      ({whiskey.ratingCount} {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
+                    </div>
+                  </div>
+                </Link>
+              ) : (
+                <div key={whiskey.id} className={styles.whiskeyCard}>
+                  <div className={styles.rankNumber}>{pageIndex * PAGE_SIZE + index + 1}</div>
+                  <div className={styles.whiskeyInfo}>
+                    <h3>{whiskey.name}</h3>
+                    <p className={styles.whiskeyMeta}>
+                      {whiskey.distillery} · {whiskey.region}
+                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
+                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
+                    </p>
+                  </div>
+                  <div className={styles.ratings}>
+                    <div className={styles.ratingBadge}>
+                      <span className={styles.ratingLabel}>Avg</span>
+                      <span className={styles.ratingValue}>
+                        {whiskey.ratingCount > 0
+                          ? whiskey.averageRating.toFixed(1)
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.ratingCount}>
+                      ({whiskey.ratingCount} {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
+                    </div>
                   </div>
                 </div>
-                {isTaster ? (
-                  <Link
-                    to={`/events/${whiskey.eventId}/whiskeys/${whiskey.id}`}
-                    className={styles.detailLink}
-                  >
-                    View Details
-                  </Link>
-                ) : (
-                  <Link
-                    to={`/events/${whiskey.eventId}`}
-                    className={styles.detailLink}
-                  >
-                    View Event
-                  </Link>
-                )}
-              </div>
+              )
             ))}
           </div>
           
