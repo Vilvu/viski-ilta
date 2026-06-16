@@ -41,4 +41,4 @@ resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = if (!empty(
 }
 
 output swaDefaultHostname string = swa.properties.defaultHostname
-output swaDeploymentToken string = swa.listSecrets().properties.apiKey
+

@@ -52,4 +52,4 @@ module staticWebAppModule './modules/staticwebapp.bicep' = {
 output cosmosEndpoint string = cosmosDbModule.outputs.cosmosEndpoint
 output cosmosAccountName string = cosmosDbModule.outputs.cosmosAccountName
 output swaDefaultHostname string = staticWebAppModule.outputs.swaDefaultHostname
-output swaDeploymentToken string = staticWebAppModule.outputs.swaDeploymentToken
+
