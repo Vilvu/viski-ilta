@@ -15,7 +15,7 @@ export default function WhiskeyDetailPage() {
     whiskeyId: string;
   }>();
   const { data: whiskey, isLoading } = useWhiskey(eventId!, whiskeyId!);
-  const { data: ratings } = useRatings(whiskeyId!);
+  const { data: ratings } = useRatings(eventId!, whiskeyId!);
   const { isAuthenticated, isTaster, user } = useAuth();
   const upsertRating = useUpsertRating();
   const deleteRating = useDeleteRating();
@@ -28,17 +28,22 @@ export default function WhiskeyDetailPage() {
   const handleRate = async (e: React.FormEvent) => {
     e.preventDefault();
     await upsertRating.mutateAsync({
-      whiskeyId: whiskeyId!,
       eventId: eventId!,
-      score,
-      notes,
+      whiskeyId: whiskeyId!,
+      input: {
+        score,
+        notes,
+      },
     });
     setEditMode(false);
   };
 
   const handleDeleteRating = async () => {
     if (confirm('Remove your rating?')) {
-      await deleteRating.mutateAsync({ whiskeyId: whiskeyId! });
+      await deleteRating.mutateAsync({
+        eventId: eventId!,
+        whiskeyId: whiskeyId!,
+      });
     }
   };
 

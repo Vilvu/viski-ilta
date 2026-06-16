@@ -9,49 +9,86 @@ interface Event {
   id: string;            // UUID — partition key
   name: string;          // Event name — e.g. "Spring Tasting 2026"
   date: string;          // ISO 8601 date — e.g. "2026-05-20"
+  location: string;      // Venue
+  description: string;
   createdAt: string;     // ISO 8601 datetime
   updatedAt: string;     // ISO 8601 datetime
-  createdBy: string;     // User ID of the admin who created it
-  whiskeyCount: number;  // Denormalized count of whiskeys
-  type: "event";         // Discriminator for queries
+  createdBy: string;     // Display name of the admin who created it
+  whiskeyCount: number;  // Denormalized count of eventWhiskeys links for this event
 }
 ```
 
-### 1.2 Whiskey
+### 1.2 Whiskey (catalog)
+
+Whiskeys are **global catalog items** — they exist independently of any event and may appear in multiple events.
 
 ```typescript
-interface Whiskey {
-  id: string;            // UUID
-  eventId: string;       // Foreign key to Event — partition key
-  name: string;          // Whiskey name — e.g. "Lagavulin 16"
-  distillery: string;    // Distillery name — e.g. "Lagavulin"
-  age: number | null;    // Age in years — null if NAS
-  whiskeyType: string;   // Type — e.g. "Single Malt", "Bourbon", "Blend"
-  averageRating: number; // Denormalized average — 0 if no ratings
-  ratingCount: number;   // Denormalized count of ratings
-  createdAt: string;     // ISO 8601 datetime
-  createdBy: string;     // User ID of the admin who added it
-  type: "whiskey";       // Discriminator for queries
+interface WhiskeyDocument {
+  id: string;                  // UUID — partition key (/id)
+  name: string;                // e.g. "Lagavulin 16"
+  distillery: string;          // e.g. "Lagavulin"
+  region: string;              // e.g. "Islay"
+  age?: number;                // Age in years — omitted if NAS
+  abv?: number;                // ABV percentage
+  description?: string;
+  createdBy: string;           // Display name
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  globalAverageRating: number; // Average across all events — 0 if no ratings
+  globalRatingCount: number;   // Total ratings across all events
 }
 ```
 
-### 1.3 Rating
+### 1.3 EventWhiskey (link)
+
+The `eventWhiskeys` container records that a catalog whiskey is poured at a specific event and carries **event-scoped aggregates**.
 
 ```typescript
-interface Rating {
-  id: string;            // Composite: "{eventId}_{whiskeyId}_{userId}"
-  eventId: string;       // Foreign key to Event
-  whiskeyId: string;     // Foreign key to Whiskey — partition key
-  userId: string;        // User ID from SWA auth
-  userDisplayName: string; // User display name for reference
-  score: number;         // Rating value: 1, 2, 3, 4, or 5
-  createdAt: string;     // ISO 8601 datetime
-  updatedAt: string;     // ISO 8601 datetime
-  type: "rating";        // Discriminator for queries
+interface EventWhiskeyDocument {
+  id: string;           // UUID — document id
+  eventId: string;      // Partition key (/eventId)
+  whiskeyId: string;    // Reference to WhiskeyDocument.id
+  addedBy: string;      // Display name of user who linked the whiskey
+  addedByUserId: string;
+  createdAt: string;
+  averageRating: number; // Average rating within this event only — 0 if none
+  ratingCount: number;   // Rating count within this event only
 }
 ```
 
-### 1.4 User — Derived from SWA Auth
+Uniqueness: at most one link per `(eventId, whiskeyId)`.
+
+### 1.4 Rating
+
+Ratings are **event-scoped** — a user may rate the same whiskey differently across different events.
+
+```typescript
+interface RatingDocument {
+  id: string;       // UUID
+  eventId: string;  // Partition key (/eventId)
+  whiskeyId: string;
+  userId: string;   // User ID from SWA auth
+  userName: string; // Display name at time of rating
+  score: number;    // 1–10
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+Uniqueness: one rating per `(eventId, whiskeyId, userId)`.
+
+### 1.5 Aggregate Recomputation Rules
+
+On every rating create, update, or delete for `(eventId, whiskeyId)`:
+
+1. **Event-scoped aggregate**: Query `ratings WHERE eventId = X AND whiskeyId = Y`; compute mean (rounded to 1 decimal); patch the `eventWhiskeys` link document (`averageRating`, `ratingCount`).
+2. **Global aggregate**: Query `ratings WHERE whiskeyId = Y` (across all events); compute mean; patch the `whiskeys` document (`globalAverageRating`, `globalRatingCount`).
+
+Implemented in `api/src/lib/aggregates.ts` — `recomputeEventAggregate(eventId, whiskeyId)` and `recomputeGlobalAggregate(whiskeyId)`.
+
+### 1.6 User — Derived from SWA Auth
 
 Users are not stored in the database. User identity is derived from the Azure Static Web Apps authentication headers on each request.
 
@@ -133,43 +170,68 @@ interface ErrorResponse {
 
 | Setting | Value |
 |---------|-------|
+| **Partition Key** | `/id` |
+| **Unique Keys** | None |
+| **TTL** | Off |
+| **Indexing Policy** | Default — all properties indexed |
+
+**Rationale**: Whiskeys are global catalog items. Partitioning by `/id` allows efficient point reads by whiskey ID from any event context.
+
+#### Container: `eventWhiskeys`
+
+| Setting | Value |
+|---------|-------|
 | **Partition Key** | `/eventId` |
 | **Unique Keys** | None |
 | **TTL** | Off |
 | **Indexing Policy** | Default — all properties indexed |
 
-**Rationale**: Partitioning by `eventId` ensures all whiskeys for an event are co-located, enabling efficient single-partition queries when viewing an event.
+**Rationale**: Partitioning by `eventId` keeps all whiskey links for an event in a single partition, enabling efficient list queries per event. Each document stores event-scoped aggregates (`averageRating`, `ratingCount`) so the whiskey list view requires no additional joins.
 
 #### Container: `ratings`
 
 | Setting | Value |
 |---------|-------|
-| **Partition Key** | `/whiskeyId` |
+| **Partition Key** | `/eventId` |
 | **Unique Keys** | None |
 | **TTL** | Off |
 | **Indexing Policy** | Default — all properties indexed |
 
-**Rationale**: Partitioning by `whiskeyId` ensures all ratings for a whiskey are co-located, enabling efficient average calculation and user-specific rating lookup.
+**Rationale**: Partitioning by `eventId` keeps all ratings for an event in a single partition. The dominant read pattern is "all ratings for a whiskey at a specific event", which is a single-partition query. The global aggregate query (`WHERE whiskeyId = @w`) is cross-partition but acceptable at low write frequency.
 
 ### 2.3 Key Queries
 
 ```sql
 -- List all events, sorted by date descending
-SELECT * FROM events e WHERE e.type = "event" ORDER BY e.date DESC
+SELECT * FROM c ORDER BY c.date DESC
 
--- Get whiskeys for an event — single partition query
-SELECT * FROM whiskeys w WHERE w.eventId = @eventId AND w.type = "whiskey"
+-- Catalog whiskeys ordered by global average rating (ranking)
+SELECT c.id, c.name, c.distillery, c.region, c.age, c.abv,
+       c.globalAverageRating, c.globalRatingCount
+FROM c ORDER BY c.globalAverageRating DESC OFFSET @skip LIMIT @top
 
--- Get user rating for a specific whiskey
-SELECT * FROM ratings r WHERE r.whiskeyId = @whiskeyId AND r.userId = @userId
+-- Get event whiskey links — single partition query
+SELECT * FROM c WHERE c.eventId = @eventId ORDER BY c.whiskeyId
 
--- Get all ratings for a whiskey — for recalculating average
-SELECT r.score FROM ratings r WHERE r.whiskeyId = @whiskeyId
+-- Find a specific event-whiskey link
+SELECT * FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId
 
--- Get user ratings for all whiskeys in an event — for the whiskey list view
-SELECT r.whiskeyId, r.score FROM ratings r
-WHERE r.whiskeyId IN (@whiskeyId1, @whiskeyId2, ...)
-AND r.userId = @userId
+-- Get ratings for a whiskey within an event — event-scoped (single partition)
+SELECT * FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId
+ORDER BY c.createdAt DESC
+
+-- Find a user's rating in an event for a whiskey (upsert check)
+SELECT * FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId
+AND c.userId = @userId
+
+-- Recompute event-scoped aggregate (single partition)
+SELECT c.score FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId
+
+-- Recompute global aggregate (cross-partition; acceptable for low-frequency writes)
+SELECT c.score FROM c WHERE c.whiskeyId = @whiskeyId
+
+-- Get user's ratings for all whiskeys in an event (for userRating on whiskey list)
+SELECT c.whiskeyId, c.score FROM c WHERE c.eventId = @eventId AND c.userId = @userId
 ```
 
 ---
@@ -277,102 +339,155 @@ AND r.userId = @userId
 - **Auth**: Required — Admin role
 - **Request**: No body
 - **Response** `204`: No content
-- **Side Effects**: Deletes all whiskeys and ratings associated with the event
 - **Errors**: `401`, `403`, `404`
 
-### 3.2 Whiskeys
+### 3.2 Catalog Whiskeys
 
-#### `GET /api/events/:eventId/whiskeys` — List Whiskeys in Event
+#### `GET /api/whiskeys` — List Catalog Whiskeys (Ranking)
 
 - **Auth**: None
-- **Request**: No body
-- **Response** `200`:
+- **Query Params**: `top` (default 100, max 1000), `skip` (default 0)
+- **Response** `200`: Array of catalog whiskeys ordered by `globalAverageRating` DESC.
 ```json
-{
-  "whiskeys": [
-    {
-      "id": "uuid-w1",
-      "eventId": "uuid-1",
-      "name": "Lagavulin 16",
-      "distillery": "Lagavulin",
-      "age": 16,
-      "whiskeyType": "Single Malt",
-      "averageRating": 4.2,
-      "ratingCount": 5,
-      "userRating": null
-    }
-  ]
-}
+[
+  {
+    "id": "uuid-w1",
+    "name": "Lagavulin 16",
+    "distillery": "Lagavulin",
+    "region": "Islay",
+    "age": 16,
+    "abv": 43,
+    "globalAverageRating": 8.3,
+    "globalRatingCount": 5
+  }
+]
 ```
-- **Errors**: `404` — event not found
 
-#### `POST /api/events/:eventId/whiskeys` — Add Whiskey to Event
+#### `POST /api/whiskeys` — Create Catalog Whiskey
 
-- **Auth**: Required — Admin role
+- **Auth**: Required — Taster role
 - **Request**:
 ```json
 {
   "name": "Lagavulin 16",
   "distillery": "Lagavulin",
+  "region": "Islay",
   "age": 16,
-  "whiskeyType": "Single Malt"
+  "abv": 43,
+  "description": "Rich and smoky"
 }
 ```
-- **Validation**:
-  - `name`: Required, string, 1–200 characters
-  - `distillery`: Required, string, 1–200 characters
-  - `age`: Optional, integer, 0–100
-  - `whiskeyType`: Required, string, one of: "Single Malt", "Blended Malt", "Blended", "Bourbon", "Rye", "Irish", "Japanese", "Other"
-- **Response** `201`: Created whiskey object
-- **Side Effects**: Increments `whiskeyCount` on the parent event
-- **Errors**: `400`, `401`, `403`, `404` — event not found
+- **Validation**: `name`, `distillery`, `region` required.
+- **Response** `201`: Created whiskey with `globalAverageRating: 0`, `globalRatingCount: 0`.
+- **Errors**: `400`, `401`
 
-#### `DELETE /api/events/:eventId/whiskeys/:whiskeyId` — Remove Whiskey
+#### `GET /api/whiskeys/:whiskeyId` — Get Catalog Whiskey
 
-- **Auth**: Required — Admin role
-- **Request**: No body
-- **Response** `204`: No content
-- **Side Effects**: Deletes all ratings for this whiskey; decrements `whiskeyCount` on the parent event
+- **Auth**: None
+- **Response** `200`: Full catalog whiskey document.
+- **Errors**: `404`
+
+#### `PATCH /api/whiskeys/:whiskeyId` — Update Catalog Whiskey
+
+- **Auth**: Required — Taster; creator or admin.
+- **Request**: Any subset of `name, distillery, region, age, abv, description`.
+- **Response** `200`: Updated whiskey. Aggregate fields are not overwritable by the client.
+- **Errors**: `400`, `401`, `403`, `404`
+
+#### `DELETE /api/whiskeys/:whiskeyId` — Delete Catalog Whiskey
+
+- **Auth**: Required — Taster; creator or admin.
+- **Response** `204`: No content.
+- **Policy**: Returns `409` if the whiskey is linked to one or more events. Remove all event links first.
+- **Errors**: `401`, `403`, `404`, `409`
+
+### 3.3 Event ↔ Whiskey Links
+
+#### `GET /api/events/:eventId/whiskeys` — List Whiskeys at Event
+
+- **Auth**: None (authenticated users receive `userRating` in each item)
+- **Response** `200`: Array of joined whiskeys — catalog fields + event-scoped aggregates.
+```json
+[
+  {
+    "id": "uuid-w1",
+    "eventId": "uuid-e1",
+    "name": "Lagavulin 16",
+    "distillery": "Lagavulin",
+    "region": "Islay",
+    "age": 16,
+    "abv": 43,
+    "averageRating": 8.5,
+    "ratingCount": 2,
+    "userRating": 9
+  }
+]
+```
+- **Notes**: `averageRating`/`ratingCount` are **event-scoped** (from the `eventWhiskeys` link). `userRating` is present only when authenticated.
+
+#### `POST /api/events/:eventId/whiskeys` — Add Whiskey to Event
+
+- **Auth**: Required — Taster role
+- **Request (link existing)**:
+```json
+{ "whiskeyId": "uuid-w1" }
+```
+- **Request (create + link)**:
+```json
+{
+  "name": "Lagavulin 16",
+  "distillery": "Lagavulin",
+  "region": "Islay",
+  "age": 16,
+  "abv": 43
+}
+```
+- **Response** `201`: Joined whiskey shape (same as GET item).
+- **Side Effects**: Creates `eventWhiskeys` link with `averageRating: 0, ratingCount: 0`; increments `event.whiskeyCount`.
+- **Errors**: `400` — missing fields, `404` — whiskey not found (link mode), `409` — already linked
+
+#### `GET /api/events/:eventId/whiskeys/:whiskeyId` — Get Event Whiskey
+
+- **Auth**: Required — Taster
+- **Response** `200`: Joined whiskey with event-scoped aggregates and `userRating` if rated.
+- **Errors**: `404` — not found in this event
+
+#### `DELETE /api/events/:eventId/whiskeys/:whiskeyId` — Remove Whiskey from Event
+
+- **Auth**: Required — Taster; link creator or admin.
+- **Response** `204`: No content.
+- **Side Effects**: Deletes the `eventWhiskeys` link; deletes all ratings for `(eventId, whiskeyId)` in this event; recomputes the whiskey's global aggregate; decrements `event.whiskeyCount`.
+- **Note**: The catalog whiskey is **not** deleted.
 - **Errors**: `401`, `403`, `404`
 
-### 3.3 Ratings
+### 3.4 Ratings
 
-#### `PUT /api/events/:eventId/whiskeys/:whiskeyId/rating` — Upsert Rating
+#### `GET /api/events/:eventId/whiskeys/:whiskeyId/ratings` — List Ratings
 
-- **Auth**: Required — Authenticated role
+- **Auth**: Required — Taster
+- **Response** `200`: Array of ratings for this `(eventId, whiskeyId)`, ordered by `createdAt` DESC.
+
+#### `PUT /api/events/:eventId/whiskeys/:whiskeyId/ratings/me` — Upsert Own Rating
+
+- **Auth**: Required — Taster
 - **Request**:
 ```json
 {
-  "score": 4
+  "score": 8,
+  "notes": "Excellent"
 }
 ```
-- **Validation**:
-  - `score`: Required, integer, 1–5
-- **Response** `200`:
-```json
-{
-  "rating": {
-    "whiskeyId": "uuid-w1",
-    "userId": "google-user-id",
-    "score": 4,
-    "updatedAt": "2026-05-20T14:30:00Z"
-  },
-  "whiskey": {
-    "averageRating": 4.2,
-    "ratingCount": 6
-  }
-}
-```
-- **Side Effects**: Recalculates and updates `averageRating` and `ratingCount` on the whiskey document
-- **Errors**: `400`, `401`, `404` — whiskey not found
+- **Validation**: `score` 1–10 (inclusive).
+- **Response** `200`: Upserted rating document.
+- **Side Effects**: Creates or replaces rating for `(eventId, whiskeyId, userId)`; recomputes event-scoped aggregate (`eventWhiskeys` link) and global aggregate (`whiskeys` document).
+- **Errors**: `400`, `401`
 
-#### `DELETE /api/events/:eventId/whiskeys/:whiskeyId/rating` — Remove Rating
+#### `DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me` — Delete Own Rating
 
-- **Auth**: Required — Authenticated role
-- **Request**: No body
-- **Response** `204`: No content
-- **Side Effects**: Recalculates and updates `averageRating` and `ratingCount` on the whiskey document
-- **Errors**: `401`, `404` — rating not found
+- **Auth**: Required — Taster
+- **Response** `204`: No content.
+- **Side Effects**: Deletes rating; recomputes event-scoped and global aggregates (sets to 0 when last rating removed).
+- **Errors**: `401`, `404`
 
 ---
 
@@ -716,11 +831,14 @@ When the mock is active, `getContainer()` in `api/src/lib/cosmos.ts` returns a `
 
 **Seed data** — The mock pre-loads the following data on every function host startup:
 
-| Container | Count | Examples |
-|-----------|-------|----------|
-| `events` | 2 | "Islay Whisky Festival 2026", "Highland Whisky Tasting" |
-| `whiskeys` | 7 | Lagavulin 16, Ardbeg Uigeadail, Talisker 10, Dalmore King Alexander III, Glenmorangie Original, Oban 14, Balblair 2009 |
-| `ratings` | 5 | Ratings from two mock users — "Alice" and "Bob" |
+| Container | Count | Notes |
+|-----------|-------|-------|
+| `events` | 2 | "Islay Whisky Festival 2026" (3 whiskeys), "Highland Whisky Tasting" (5 whiskeys) |
+| `whiskeys` | 7 | Catalog items: Lagavulin 16, Ardbeg Uigeadail, Talisker 10, Dalmore, Glenmorangie Original, Oban 14, Balblair 2009 — no `eventId` field |
+| `eventWhiskeys` | 8 | Event1↔{lagavulin, ardbeg, talisker}; Event2↔{dalmore, glenmorangie, oban, balblair, lagavulin}. Lagavulin is linked to both events with different per-event averages. |
+| `ratings` | 11 | Ratings from two mock users — "Alice" (user1) and "Bob" (user2). Alice rates Lagavulin 9 in Event1 and 7 in Event2, demonstrating cross-event independence. |
+
+Aggregates are hand-computed in the seed so reads are self-consistent without running any recompute. See `cosmos.mock.ts` code comments for the arithmetic.
 
 **Supported operations**:
 

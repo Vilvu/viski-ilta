@@ -1,31 +1,50 @@
 import { apiClient } from './client';
 import type { Rating, ApiResponse } from '@/types';
 
+// Input type for upserting a rating
 export interface UpsertRatingInput {
-  whiskeyId: string;
-  eventId: string;
   score: number;
   notes?: string;
 }
 
 export const ratingsApi = {
-  getByWhiskey: async (whiskeyId: string): Promise<Rating[]> => {
+  /**
+   * GET /api/events/{eventId}/whiskeys/{whiskeyId}/ratings
+   * List all ratings for a whiskey in a specific event.
+   */
+  getByEventWhiskey: async (
+    eventId: string,
+    whiskeyId: string,
+  ): Promise<Rating[]> => {
     const response = await apiClient.get<ApiResponse<Rating[]>>(
-      `/whiskeys/${whiskeyId}/ratings`,
+      `/events/${eventId}/whiskeys/${whiskeyId}/ratings`,
     );
     return response.data.data;
   },
 
-  upsert: async (input: UpsertRatingInput): Promise<Rating> => {
-    const { whiskeyId, ...body } = input;
+  /**
+   * PUT /api/events/{eventId}/whiskeys/{whiskeyId}/ratings/me
+   * Upsert the authenticated user's rating for a whiskey in an event.
+   */
+  upsert: async (
+    eventId: string,
+    whiskeyId: string,
+    input: UpsertRatingInput,
+  ): Promise<Rating> => {
     const response = await apiClient.put<ApiResponse<Rating>>(
-      `/whiskeys/${whiskeyId}/ratings/me`,
-      body,
+      `/events/${eventId}/whiskeys/${whiskeyId}/ratings/me`,
+      input,
     );
     return response.data.data;
   },
 
-  delete: async ({ whiskeyId }: { whiskeyId: string }): Promise<void> => {
-    await apiClient.delete(`/whiskeys/${whiskeyId}/ratings/me`);
+  /**
+   * DELETE /api/events/{eventId}/whiskeys/{whiskeyId}/ratings/me
+   * Delete the authenticated user's rating for a whiskey in an event.
+   */
+  delete: async (eventId: string, whiskeyId: string): Promise<void> => {
+    await apiClient.delete(
+      `/events/${eventId}/whiskeys/${whiskeyId}/ratings/me`,
+    );
   },
 };

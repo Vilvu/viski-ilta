@@ -18,7 +18,25 @@ export interface Event {
   whiskeyCount: number;
 }
 
-export interface Whiskey {
+// Catalog whiskey (standalone, global catalog)
+export interface CatalogWhiskey {
+  id: string;
+  name: string;
+  distillery: string;
+  region: string;
+  age?: number;
+  abv?: number;
+  description?: string;
+  createdBy: string;
+  createdByUserId?: string;
+  createdAt: string;
+  updatedAt: string;
+  globalAverageRating: number;
+  globalRatingCount: number;
+}
+
+// Whiskey as linked to an event (joined with event-scoped aggregates)
+export interface EventWhiskey {
   id: string;
   eventId: string;
   name: string;
@@ -31,10 +49,12 @@ export interface Whiskey {
   createdByUserId?: string;
   createdAt: string;
   updatedAt: string;
-  averageRating: number;
-  ratingCount: number;
+  averageRating: number;  // event-scoped
+  ratingCount: number;    // event-scoped
   userRating?: number;
 }
+
+
 
 export interface Rating {
   id: string;

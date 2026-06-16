@@ -24,8 +24,9 @@
 - [ ] Provision Azure Cosmos DB account — serverless, NoSQL API
   - [ ] Create database `whiskyapp`
   - [ ] Create container `events` — partition key `/id`
-  - [ ] Create container `whiskeys` — partition key `/eventId`
-  - [ ] Create container `ratings` — partition key `/whiskeyId`
+  - [ ] Create container `whiskeys` — partition key `/id`
+  - [ ] Create container `eventWhiskeys` — partition key `/eventId`
+  - [ ] Create container `ratings` — partition key `/eventId`
 - [ ] Provision Azure Static Web Apps resource
   - [ ] Connect to GitHub repository
   - [ ] Configure build settings — app: `/`, api: `api`, output: `dist`
@@ -63,22 +64,33 @@
 - [ ] Write unit tests for Event service
 - [ ] Write integration tests for Event API functions
 
-## Phase 4: Backend API — Whiskeys
+## Phase 4: Backend API — Whiskeys (catalog + event links)
 
-- [x] Implement Whiskey API functions — `api/src/functions/whiskeys.ts`
-  - [x] `GET /api/events/:eventId/whiskeys` — list whiskeys
-  - [x] `POST /api/events/:eventId/whiskeys` — add whiskey — admin only
-  - [x] `DELETE /api/events/:eventId/whiskeys/:whiskeyId` — remove whiskey — admin only
-- [ ] Write unit tests for Whiskey service
-- [ ] Write integration tests for Whiskey API functions
+- [x] Implement catalog whiskey functions — `api/src/functions/whiskeys.ts`
+  - [x] `GET /api/whiskeys` — list catalog whiskeys (global avg rating order)
+  - [x] `POST /api/whiskeys` — create catalog whiskey
+  - [x] `GET /api/whiskeys/:whiskeyId` — get catalog whiskey
+  - [x] `PATCH /api/whiskeys/:whiskeyId` — update catalog whiskey (creator/admin)
+  - [x] `DELETE /api/whiskeys/:whiskeyId` — delete catalog whiskey (409 if linked)
+- [x] Implement event-link functions — `api/src/functions/whiskeys.ts`
+  - [x] `GET /api/events/:eventId/whiskeys` — list joined event whiskeys
+  - [x] `POST /api/events/:eventId/whiskeys` — add whiskey to event (link or create+link)
+  - [x] `GET /api/events/:eventId/whiskeys/:whiskeyId` — get single event whiskey
+  - [x] `DELETE /api/events/:eventId/whiskeys/:whiskeyId` — remove link from event
+- [x] Implement aggregate helpers — `api/src/lib/aggregates.ts`
+  - [x] `recomputeEventAggregate(eventId, whiskeyId)` — event-scoped avg/count
+  - [x] `recomputeGlobalAggregate(whiskeyId)` — global avg/count
+- [ ] Write unit tests for whiskey and link functions
+- [ ] Write integration tests for whiskey API functions
 
-## Phase 5: Backend API — Ratings
+## Phase 5: Backend API — Ratings (event-scoped)
 
-- [x] Implement Rating API functions — `api/src/functions/ratings.ts`
-  - [x] `PUT /api/events/:eventId/whiskeys/:whiskeyId/rating` — upsert rating
-  - [x] `DELETE /api/events/:eventId/whiskeys/:whiskeyId/rating` — remove rating
-- [ ] Write unit tests for Rating service
-- [ ] Write integration tests for Rating API functions
+- [x] Implement rating functions — `api/src/functions/ratings.ts`
+  - [x] `GET /api/events/:eventId/whiskeys/:whiskeyId/ratings` — list event-scoped ratings
+  - [x] `PUT /api/events/:eventId/whiskeys/:whiskeyId/ratings/me` — upsert own rating
+  - [x] `DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me` — delete own rating
+- [ ] Write unit tests for rating functions
+- [ ] Write integration tests for rating API functions
 
 ## Phase 6: Frontend — Foundation
 
@@ -135,6 +147,19 @@
 - [ ] Add loading skeletons or spinners
 - [ ] Add toast notifications for success/error feedback
 - [ ] Ensure WCAG 2.1 AA accessibility basics — focus management, ARIA labels, color contrast
+
+## Phase 9b: Whiskey Catalog Refactor (Completed)
+
+- [x] Update Bicep: `whiskeys` pk → `/id`; `ratings` pk → `/eventId`; add `eventWhiskeys` container
+- [x] Rewrite mock seed to decoupled schema (7 catalog whiskeys, 8 links, 11 event-scoped ratings)
+- [x] Refactor `whiskeys.ts` into catalog CRUD + event-link operations
+- [x] Extract `aggregates.ts` helper module (event + global recompute)
+- [x] Refactor `ratings.ts` to event-scoped routes and aggregate triggers
+- [x] Update frontend types: `CatalogWhiskey`, `EventWhiskey`; deprecate monolithic `Whiskey`
+- [x] Update API clients: `catalogWhiskeysApi`, `eventWhiskeysApi`, `ratingsApi`
+- [x] Update hooks: `useAddWhiskeyToEvent`, `useRemoveWhiskeyFromEvent`, `useRatings(eventId, whiskeyId)`
+- [x] Update pages: RankingPage (global avg), WhiskeyDetailPage (event ratings), EventDetailPage (new mutations)
+- [x] Update all docs: architecture.md, technical.md, prd.md, deployment.md, TODO.md
 
 ## Phase 10: Testing
 

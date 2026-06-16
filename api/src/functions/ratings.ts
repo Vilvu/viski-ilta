@@ -7,12 +7,16 @@ import {
 import { getContainer } from '../lib/cosmos';
 import { requireTaster, getUserDisplayName } from '../lib/auth';
 import { ok, noContent, notFound, handleError } from '../lib/response';
+import {
+  recomputeEventAggregate,
+  recomputeGlobalAggregate,
+} from '../lib/aggregates';
 import { v4 as uuidv4 } from 'uuid';
 
 interface RatingDocument {
   id: string;
-  whiskeyId: string;
   eventId: string;
+  whiskeyId: string;
   userId: string;
   userName: string;
   score: number;
@@ -21,38 +25,50 @@ interface RatingDocument {
   updatedAt: string;
 }
 
-// GET /api/whiskeys/{whiskeyId}/ratings
+/**
+ * GET /api/events/{eventId}/whiskeys/{whiskeyId}/ratings
+ * List all ratings for a whiskey in a specific event.
+ */
 async function getRatings(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     requireTaster(req);
-    const whiskeyId = req.params.whiskeyId;
+    const { eventId, whiskeyId } = req.params;
     const container = getContainer('ratings');
+
     const { resources } = await container.items
       .query({
         query:
-          'SELECT * FROM c WHERE c.whiskeyId = @whiskeyId ORDER BY c.createdAt DESC',
-        parameters: [{ name: '@whiskeyId', value: whiskeyId }],
+          'SELECT * FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId ORDER BY c.createdAt DESC',
+        parameters: [
+          { name: '@eventId', value: eventId },
+          { name: '@whiskeyId', value: whiskeyId },
+        ],
       })
       .fetchAll();
+
     return ok(resources);
   } catch (error) {
     return handleError(error);
   }
 }
 
-// PUT /api/whiskeys/{whiskeyId}/ratings/me
+/**
+ * PUT /api/events/{eventId}/whiskeys/{whiskeyId}/ratings/me
+ * Upsert the authenticated user's rating for a whiskey in an event.
+ * Uniqueness is (eventId, whiskeyId, userId).
+ * Recomputes both event-scoped and global aggregates after write.
+ */
 async function upsertMyRating(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const principal = requireTaster(req);
-    const whiskeyId = req.params.whiskeyId;
+    const { eventId, whiskeyId } = req.params;
     const body = (await req.json()) as {
-      eventId: string;
       score: number;
       notes?: string;
     };
@@ -66,13 +82,15 @@ async function upsertMyRating(
 
     const ratingsContainer = getContainer('ratings');
     const now = new Date().toISOString();
+    const displayName = (await getUserDisplayName(principal)) || principal.userId;
 
-    // Check for existing rating
+    // Check for existing rating with this (eventId, whiskeyId, userId)
     const { resources: existing } = await ratingsContainer.items
       .query({
         query:
-          'SELECT * FROM c WHERE c.whiskeyId = @whiskeyId AND c.userId = @userId',
+          'SELECT * FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId AND c.userId = @userId',
         parameters: [
+          { name: '@eventId', value: eventId },
           { name: '@whiskeyId', value: whiskeyId },
           { name: '@userId', value: principal.userId },
         ],
@@ -81,9 +99,8 @@ async function upsertMyRating(
 
     let rating: RatingDocument;
     if (existing.length > 0) {
-      // Update existing
+      // Update existing rating
       const existingRating = existing[0] as RatingDocument;
-      const displayName = await getUserDisplayName(principal);
       rating = {
         ...existingRating,
         userName: displayName,
@@ -91,14 +108,13 @@ async function upsertMyRating(
         notes: body.notes,
         updatedAt: now,
       };
-      await ratingsContainer.item(existingRating.id, whiskeyId).replace(rating);
+      await ratingsContainer.item(existingRating.id, eventId).replace(rating);
     } else {
-      // Create new
-      const displayName = await getUserDisplayName(principal);
+      // Create new rating
       rating = {
         id: uuidv4(),
+        eventId,
         whiskeyId,
-        eventId: body.eventId,
         userId: principal.userId,
         userName: displayName,
         score: body.score,
@@ -109,32 +125,9 @@ async function upsertMyRating(
       await ratingsContainer.items.create(rating);
     }
 
-    // Recalculate average on whiskey document
-    const { resources: allRatings } = await ratingsContainer.items
-      .query({
-        query: 'SELECT c.score FROM c WHERE c.whiskeyId = @whiskeyId',
-        parameters: [{ name: '@whiskeyId', value: whiskeyId }],
-      })
-      .fetchAll();
-
-    const scores = allRatings.map((r: { score: number }) => r.score);
-    const average =
-      scores.reduce((a: number, b: number) => a + b, 0) / scores.length;
-
-    const whiskeysContainer = getContainer('whiskeys');
-    const { resource: whiskey } = await whiskeysContainer
-      .item(whiskeyId, body.eventId)
-      .read();
-    if (whiskey) {
-      await whiskeysContainer.item(whiskeyId, body.eventId).patch([
-        {
-          op: 'set',
-          path: '/averageRating',
-          value: Math.round(average * 10) / 10,
-        },
-        { op: 'set', path: '/ratingCount', value: scores.length },
-      ]);
-    }
+    // Recompute event-scoped and global aggregates
+    await recomputeEventAggregate(eventId, whiskeyId);
+    await recomputeGlobalAggregate(whiskeyId);
 
     return ok(rating);
   } catch (error) {
@@ -142,60 +135,44 @@ async function upsertMyRating(
   }
 }
 
-// DELETE /api/whiskeys/{whiskeyId}/ratings/me
+/**
+ * DELETE /api/events/{eventId}/whiskeys/{whiskeyId}/ratings/me
+ * Delete the authenticated user's rating for a whiskey in an event.
+ * Recomputes both event-scoped and global aggregates after deletion.
+ */
 async function deleteMyRating(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const principal = requireTaster(req);
-    const whiskeyId = req.params.whiskeyId;
+    const { eventId, whiskeyId } = req.params;
 
     const ratingsContainer = getContainer('ratings');
+
+    // Find the existing rating for this (eventId, whiskeyId, userId)
     const { resources: existing } = await ratingsContainer.items
       .query({
         query:
-          'SELECT * FROM c WHERE c.whiskeyId = @whiskeyId AND c.userId = @userId',
+          'SELECT * FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId AND c.userId = @userId',
         parameters: [
+          { name: '@eventId', value: eventId },
           { name: '@whiskeyId', value: whiskeyId },
           { name: '@userId', value: principal.userId },
         ],
       })
       .fetchAll();
 
-    if (existing.length === 0) return notFound('Rating not found');
+    if (existing.length === 0) {
+      return notFound('Rating not found');
+    }
 
     const existingRating = existing[0] as RatingDocument;
-    await ratingsContainer.item(existingRating.id, whiskeyId).delete();
+    await ratingsContainer.item(existingRating.id, eventId).delete();
 
-    // Recalculate average
-    const { resources: allRatings } = await ratingsContainer.items
-      .query({
-        query: 'SELECT c.score FROM c WHERE c.whiskeyId = @whiskeyId',
-        parameters: [{ name: '@whiskeyId', value: whiskeyId }],
-      })
-      .fetchAll();
-
-    const scores = allRatings.map((r: { score: number }) => r.score);
-    const average =
-      scores.length > 0
-        ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length
-        : 0;
-
-    const whiskeysContainer = getContainer('whiskeys');
-    const { resource: whiskey } = await whiskeysContainer
-      .item(whiskeyId, existingRating.eventId)
-      .read();
-    if (whiskey) {
-      await whiskeysContainer.item(whiskeyId, existingRating.eventId).patch([
-        {
-          op: 'set',
-          path: '/averageRating',
-          value: Math.round(average * 10) / 10,
-        },
-        { op: 'set', path: '/ratingCount', value: scores.length },
-      ]);
-    }
+    // Recompute event-scoped and global aggregates
+    await recomputeEventAggregate(eventId, whiskeyId);
+    await recomputeGlobalAggregate(whiskeyId);
 
     return noContent();
   } catch (error) {
@@ -203,21 +180,24 @@ async function deleteMyRating(
   }
 }
 
+// Route registrations
 app.http('getRatings', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'whiskeys/{whiskeyId}/ratings',
+  route: 'events/{eventId}/whiskeys/{whiskeyId}/ratings',
   handler: getRatings,
 });
+
 app.http('upsertMyRating', {
   methods: ['PUT'],
   authLevel: 'anonymous',
-  route: 'whiskeys/{whiskeyId}/ratings/me',
+  route: 'events/{eventId}/whiskeys/{whiskeyId}/ratings/me',
   handler: upsertMyRating,
 });
+
 app.http('deleteMyRating', {
   methods: ['DELETE'],
   authLevel: 'anonymous',
-  route: 'whiskeys/{whiskeyId}/ratings/me',
+  route: 'events/{eventId}/whiskeys/{whiskeyId}/ratings/me',
   handler: deleteMyRating,
 });

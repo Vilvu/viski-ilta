@@ -66,20 +66,22 @@ The MVP focuses on core event management and rating functionality. Advanced feat
 | ID | Requirement | Role |
 |----|-------------|------|
 | FR-2.1 | Browse whiskeys within an event | All users |
-| FR-2.2 | View whiskey details including ratings | All users |
-| FR-2.3 | Add a whiskey to an event with name, distillery, age, and type | Admin |
-| FR-2.4 | Remove a whiskey from an event | Admin |
+| FR-2.2 | View whiskey details including ratings for that event | All users |
+| FR-2.3 | Add a whiskey to an event — either by creating a new catalog entry or linking an existing one | Taster |
+| FR-2.4 | Remove a whiskey from an event (removes the link; catalog entry and other event appearances are unaffected) | Taster (creator or admin) |
+| FR-2.5 | Edit catalog whiskey attributes (name, distillery, region, etc.) — change is global across all events | Taster (creator or admin) |
+| FR-2.6 | View global ranking of all catalog whiskeys by average rating across all events | All users |
 
 ### FR-3: Rating System
 
 | ID | Requirement | Role |
 |----|-------------|------|
-| FR-3.1 | Rate a whiskey on a 1–5 scale | Authenticated User |
-| FR-3.2 | Update an existing rating | Authenticated User |
-| FR-3.3 | Remove own rating from a whiskey | Authenticated User |
-| FR-3.4 | View the current users own rating on the whiskey list | Authenticated User |
-| FR-3.5 | View the overall average rating on the whiskey list | All users |
-| FR-3.6 | View the total number of ratings for a whiskey | All users |
+| FR-3.1 | Rate a whiskey on a 1–10 scale within an event | Taster |
+| FR-3.2 | Update an existing rating for a whiskey within an event | Taster |
+| FR-3.3 | Remove own rating from a whiskey within an event | Taster |
+| FR-3.4 | View own rating alongside the average on the event whiskey list | Taster |
+| FR-3.5 | View the event-scoped average rating and count on the whiskey list | All users |
+| FR-3.6 | Rate the same whiskey differently across different events | Taster |
 
 ### FR-4: Authentication
 
@@ -167,11 +169,11 @@ The MVP focuses on core event management and rating functionality. Advanced feat
 **US-D1**: As an admin, I want to create a new tasting event so that participants can rate whiskeys.
 - **Acceptance Criteria**: A form allows entering event name and date; on submit, the event appears in the event list.
 
-**US-D2**: As an admin, I want to add whiskeys to an event so that participants know what to taste.
-- **Acceptance Criteria**: Within an event, a form allows entering whiskey name, distillery, age, and type; on submit, the whiskey appears in the event whiskey list.
+**US-D2**: As a taster, I want to add whiskeys to an event so that participants know what to taste.
+- **Acceptance Criteria**: Within an event, a form allows either creating a new catalog whiskey (name, distillery, region, etc.) or selecting an existing catalog whiskey; on submit, the whiskey appears in the event whiskey list. The same whiskey can be poured at multiple events independently.
 
-**US-D3**: As an admin, I want to remove a whiskey from an event so that I can correct mistakes.
-- **Acceptance Criteria**: A delete action on a whiskey removes it and all its ratings from the event; confirmation dialog is shown before deletion.
+**US-D3**: As a taster, I want to remove a whiskey from an event so that I can correct mistakes.
+- **Acceptance Criteria**: A "Remove from event" action on a whiskey removes the event link and deletes ratings from that event; the catalog whiskey and its appearance in other events are unaffected; confirmation dialog is shown before removal.
 
 **US-D4**: As an admin, I want to delete an event so that I can clean up old or cancelled events.
 - **Acceptance Criteria**: A delete action on an event removes it and all associated whiskeys and ratings; confirmation dialog is shown before deletion.
@@ -192,7 +194,7 @@ The following features are explicitly excluded from the MVP but may be considere
 - Advanced analytics or reporting dashboards
 - Multiple rating dimensions — currently single 1–5 score
 - Event invitations or access control per event
-- Whiskey database or catalog — whiskeys are event-specific
+- Advanced whiskey catalog browse page (whiskeys exist as a catalog but have no standalone browse route in the MVP)
 - Push notifications
 - Offline support / PWA features
 

@@ -120,7 +120,7 @@ az cosmosdb sql database create \
   --name whiskyapp
 ```
 
-#### Create the three containers
+#### Create the four containers
 
 ```bash
 # Events container — partition key: /id
@@ -131,21 +131,29 @@ az cosmosdb sql container create \
   --name events \
   --partition-key-path "/id"
 
-# Whiskeys container — partition key: /eventId
+# Whiskeys catalog container — partition key: /id
 az cosmosdb sql container create \
   --account-name cosmos-whiskyapp \
   --resource-group rg-whiskyapp \
   --database-name whiskyapp \
   --name whiskeys \
+  --partition-key-path "/id"
+
+# Event-whiskey links container — partition key: /eventId
+az cosmosdb sql container create \
+  --account-name cosmos-whiskyapp \
+  --resource-group rg-whiskyapp \
+  --database-name whiskyapp \
+  --name eventWhiskeys \
   --partition-key-path "/eventId"
 
-# Ratings container — partition key: /whiskeyId
+# Ratings container — partition key: /eventId
 az cosmosdb sql container create \
   --account-name cosmos-whiskyapp \
   --resource-group rg-whiskyapp \
   --database-name whiskyapp \
   --name ratings \
-  --partition-key-path "/whiskeyId"
+  --partition-key-path "/eventId"
 ```
 
 #### Retrieve connection credentials
@@ -863,7 +871,7 @@ Use this checklist to track your deployment progress:
 - [ ] Resource group `rg-whiskyapp` created
 - [ ] Cosmos DB account created (serverless)
 - [ ] Database `whiskyapp` created
-- [ ] Containers created: `events`, `whiskeys`, `ratings`
+- [ ] Containers created: `events`, `whiskeys` (pk `/id`), `eventWhiskeys` (pk `/eventId`), `ratings` (pk `/eventId`)
 - [ ] Cosmos DB endpoint and key retrieved
 - [ ] Azure Static Web App created and linked to GitHub
 - [ ] Entra ID auth provider configured (pre-configured — no additional setup needed)

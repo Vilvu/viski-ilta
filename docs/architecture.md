@@ -32,6 +32,7 @@ WhiskyApp follows a **serverless, JAMstack-inspired architecture** on Azure, opt
 │  │   - whiskyapp database           │                           │
 │  │     ├── events container         │                           │
 │  │     ├── whiskeys container       │                           │
+│  │     ├── eventWhiskeys container  │                           │
 │  │     └── ratings container        │                           │
 │  └──────────────────────────────────┘                           │
 │                                                                 │
@@ -66,9 +67,11 @@ sequenceDiagram
     SWA-->>U: Event list data
 
     Note over U: User rates a whiskey
-    U->>SWA: PUT /api/events/e1/whiskeys/w1/ratings
+    U->>SWA: PUT /api/events/e1/whiskeys/w1/ratings/me
     SWA->>AF: Proxy with auth context
     AF->>DB: Upsert rating document
+    AF->>DB: Recompute event aggregate (eventWhiskeys)
+    AF->>DB: Recompute global aggregate (whiskeys)
     DB-->>AF: Confirmation
     AF-->>SWA: Updated rating
     SWA-->>U: Rating confirmed
@@ -228,27 +231,20 @@ App
 api/
 ├── src/
 │   ├── functions/
-│   │   ├── events.ts          — GET /api/events, POST /api/events
-│   │   ├── event.ts           — GET/PUT/DELETE /api/events/:eventId
-│   │   ├── whiskeys.ts        — GET /api/events/:eventId/whiskeys
-│   │   │                        POST /api/events/:eventId/whiskeys
-│   │   ├── whiskey.ts         — DELETE /api/events/:eventId/whiskeys/:whiskeyId
-│   │   └── rating.ts         — PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/rating
-│   ├── services/
-│   │   ├── cosmosClient.ts    — Cosmos DB connection singleton
-│   │   ├── eventService.ts    — Event CRUD operations
-│   │   ├── whiskeyService.ts  — Whiskey CRUD operations
-│   │   └── ratingService.ts   — Rating operations
-│   ├── middleware/
-│   │   └── auth.ts            — Auth helper to extract user from SWA headers
-│   ├── models/
-│   │   ├── event.ts           — Event type definitions
-│   │   ├── whiskey.ts         — Whiskey type definitions
-│   │   ├── rating.ts          — Rating type definitions
-│   │   └── user.ts            — User type definitions
-│   └── utils/
-│       ├── validation.ts      — Input validation helpers
-│       └── errors.ts          — Error response helpers
+│   │   ├── events.ts      — GET/POST /api/events
+│   │   │                    GET/PUT/DELETE /api/events/:eventId
+│   │   ├── whiskeys.ts    — GET/POST /api/whiskeys (catalog)
+│   │   │                    GET/PATCH/DELETE /api/whiskeys/:whiskeyId
+│   │   │                    GET/POST /api/events/:eventId/whiskeys (event links)
+│   │   │                    GET/DELETE /api/events/:eventId/whiskeys/:whiskeyId
+│   │   └── ratings.ts     — GET /api/events/:eventId/whiskeys/:whiskeyId/ratings
+│   │                        PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me
+│   └── lib/
+│       ├── cosmos.ts      — getContainer() — routes to mock or real Cosmos DB
+│       ├── cosmos.mock.ts — MockContainer + seed data
+│       ├── auth.ts        — getClientPrincipal, requireTaster, isAdmin, getUserDisplayName
+│       ├── response.ts    — ok, created, noContent, notFound, handleError helpers
+│       └── aggregates.ts  — recomputeEventAggregate, recomputeGlobalAggregate
 ├── host.json
 ├── local.settings.json
 ├── package.json
@@ -302,18 +298,42 @@ flowchart LR
 
 ### 5.1 RESTful Endpoints
 
+**Events**
+
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
 | `GET` | `/api/events` | None | All | List all events |
 | `POST` | `/api/events` | Required | Admin | Create a new event |
 | `GET` | `/api/events/:eventId` | None | All | Get event details |
 | `PUT` | `/api/events/:eventId` | Required | Admin | Update event |
-| `DELETE` | `/api/events/:eventId` | Required | Admin | Delete event and cascade |
-| `GET` | `/api/events/:eventId/whiskeys` | None | All | List whiskeys in event |
-| `POST` | `/api/events/:eventId/whiskeys` | Required | Admin | Add whiskey to event |
-| `DELETE` | `/api/events/:eventId/whiskeys/:whiskeyId` | Required | Admin | Remove whiskey |
-| `PUT` | `/api/events/:eventId/whiskeys/:whiskeyId/rating` | Required | User | Upsert user rating |
-| `DELETE` | `/api/events/:eventId/whiskeys/:whiskeyId/rating` | Required | User | Remove user rating |
+| `DELETE` | `/api/events/:eventId` | Required | Admin | Delete event |
+
+**Catalog whiskeys** (global, not event-scoped)
+
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| `GET` | `/api/whiskeys` | None | All | List catalog whiskeys by global avg rating |
+| `POST` | `/api/whiskeys` | Required | Taster | Create catalog whiskey |
+| `GET` | `/api/whiskeys/:whiskeyId` | None | All | Get single catalog whiskey |
+| `PATCH` | `/api/whiskeys/:whiskeyId` | Required | Taster | Update catalog whiskey (creator/admin) |
+| `DELETE` | `/api/whiskeys/:whiskeyId` | Required | Taster | Delete catalog whiskey (creator/admin; 409 if linked) |
+
+**Event ↔ whiskey links**
+
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| `GET` | `/api/events/:eventId/whiskeys` | None | All | List event whiskeys (joined, event-scoped avg) |
+| `POST` | `/api/events/:eventId/whiskeys` | Required | Taster | Add whiskey to event (link existing or create+link) |
+| `GET` | `/api/events/:eventId/whiskeys/:whiskeyId` | Required | Taster | Get single event whiskey |
+| `DELETE` | `/api/events/:eventId/whiskeys/:whiskeyId` | Required | Taster | Remove whiskey from event (link only; creator/admin) |
+
+**Ratings** (event-scoped)
+
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| `GET` | `/api/events/:eventId/whiskeys/:whiskeyId/ratings` | Required | Taster | List ratings for whiskey in this event |
+| `PUT` | `/api/events/:eventId/whiskeys/:whiskeyId/ratings/me` | Required | Taster | Upsert own rating |
+| `DELETE` | `/api/events/:eventId/whiskeys/:whiskeyId/ratings/me` | Required | Taster | Delete own rating |
 
 ### 5.2 API Conventions
 
@@ -380,9 +400,10 @@ rg-whiskyapp-dev
 │   └── Built-in Auth        — Microsoft Entra ID
 └── Azure Cosmos DB Account  — cosmos-whiskyapp-dev
     └── Database: whiskyapp
-        ├── Container: events
-        ├── Container: whiskeys
-        └── Container: ratings
+        ├── Container: events         (pk: /id)
+        ├── Container: whiskeys       (pk: /id)
+        ├── Container: eventWhiskeys  (pk: /eventId)
+        └── Container: ratings        (pk: /eventId)
 ```
 
 ### 7.2 Estimated Monthly Cost — MVP

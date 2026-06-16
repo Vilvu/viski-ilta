@@ -8,7 +8,7 @@ This directory contains the Infrastructure as Code (IaC) files for deploying the
 infra/
 ├── main.bicep                    # Subscription-scoped entry point, creates RG + calls modules
 ├── modules/
-│   ├── cosmosdb.bicep            # Cosmos DB account, DB, 3 containers
+│   ├── cosmosdb.bicep            # Cosmos DB account, DB, 4 containers
 │   └── staticwebapp.bicep        # SWA resource + app settings
 ├── parameters/
 │   ├── dev.bicepparam

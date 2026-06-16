@@ -1,3 +1,11 @@
+// WARNING: This module contains DESTRUCTIVE partition-key changes from the original schema:
+//   - whiskeys container:     /eventId → /id
+//   - ratings container:      /whiskeyId → /eventId
+//   - eventWhiskeys container: NEW (pk /eventId)
+// Azure Resource Manager WILL DROP AND RECREATE any container whose partition key changes.
+// This deploy assumes a GREENFIELD environment with no existing data.
+// If any data exists, rename affected containers or run a migration script first.
+
 param cosmosAccountName string
 param location string
 param environment string
@@ -62,7 +70,7 @@ resource whiskeysContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/c
       id: 'whiskeys'
       partitionKey: {
         paths: [
-          '/eventId'
+          '/id'
         ]
         kind: 'Hash'
       }
@@ -78,7 +86,23 @@ resource ratingsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
       id: 'ratings'
       partitionKey: {
         paths: [
-          '/whiskeyId'
+          '/eventId'
+        ]
+        kind: 'Hash'
+      }
+    }
+  }
+}
+
+resource eventWhiskeysContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+  parent: whiskyDatabase
+  name: 'eventWhiskeys'
+  properties: {
+    resource: {
+      id: 'eventWhiskeys'
+      partitionKey: {
+        paths: [
+          '/eventId'
         ]
         kind: 'Hash'
       }

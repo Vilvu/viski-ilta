@@ -3,15 +3,18 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEvent } from '@/hooks/useEvents';
 import {
   useWhiskeys,
-  useCreateWhiskey,
-  useDeleteWhiskey,
+  useAddWhiskeyToEvent,
+  useRemoveWhiskeyFromEvent,
   useUpdateWhiskey,
 } from '@/hooks/useWhiskeys';
 import { useUpdateEvent, useDeleteEvent } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
-import type { CreateWhiskeyInput, UpdateWhiskeyInput } from '@/api/whiskeys';
+import type {
+  CreateCatalogWhiskeyInput,
+  UpdateCatalogWhiskeyInput,
+} from '@/api/whiskeys';
 import type { UpdateEventInput } from '@/api/events';
-import type { Whiskey } from '@/types';
+import type { EventWhiskey } from '@/types';
 import styles from './EventDetailPage.module.css';
 
 export default function EventDetailPage() {
@@ -20,13 +23,13 @@ export default function EventDetailPage() {
   const { data: event, isLoading: eventLoading } = useEvent(eventId!);
   const { data: whiskeys, isLoading: whiskeysLoading } = useWhiskeys(eventId!);
   const { isAdmin, isTaster, user } = useAuth();
-  const createWhiskey = useCreateWhiskey();
-  const deleteWhiskey = useDeleteWhiskey();
+  const addWhiskey = useAddWhiskeyToEvent();
+  const removeWhiskey = useRemoveWhiskeyFromEvent();
   const updateWhiskey = useUpdateWhiskey();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<Omit<CreateWhiskeyInput, 'eventId'>>({
+  const [form, setForm] = useState<CreateCatalogWhiskeyInput>({
     name: '',
     distillery: '',
     region: '',
@@ -35,9 +38,7 @@ export default function EventDetailPage() {
     description: '',
   });
   const [editingWhiskeyId, setEditingWhiskeyId] = useState<string | null>(null);
-  const [editWhiskeyForm, setEditWhiskeyForm] = useState<UpdateWhiskeyInput>({
-    eventId: eventId!,
-    whiskeyId: '',
+  const [editWhiskeyForm, setEditWhiskeyForm] = useState<UpdateCatalogWhiskeyInput>({
     name: '',
     distillery: '',
     region: '',
@@ -55,7 +56,7 @@ export default function EventDetailPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createWhiskey.mutateAsync({ ...form, eventId: eventId! });
+    await addWhiskey.mutateAsync({ eventId: eventId!, input: form });
     setForm({
       name: '',
       distillery: '',
@@ -67,13 +68,13 @@ export default function EventDetailPage() {
     setShowForm(false);
   };
 
-  const canDeleteWhiskey = (whiskey: Whiskey): boolean => {
+  const canDeleteWhiskey = (whiskey: EventWhiskey): boolean => {
     if (isAdmin) return true;
     if (isTaster && user && whiskey.createdByUserId === user.id) return true;
     return false;
   };
 
-  const canEditWhiskey = (whiskey: Whiskey): boolean => {
+  const canEditWhiskey = (whiskey: EventWhiskey): boolean => {
     if (isAdmin) return true;
     if (isTaster && user && whiskey.createdByUserId === user.id) return true;
     return false;
@@ -104,20 +105,20 @@ export default function EventDetailPage() {
   const handleWhiskeyEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingWhiskeyId || !eventId) return;
+    // updateWhiskey now edits the catalog whiskey (global), not event-scoped
     await updateWhiskey.mutateAsync({
-      eventId,
       whiskeyId: editingWhiskeyId,
-      name: editWhiskeyForm.name,
-      distillery: editWhiskeyForm.distillery,
-      region: editWhiskeyForm.region,
-      age: editWhiskeyForm.age,
-      abv: editWhiskeyForm.abv,
-      description: editWhiskeyForm.description,
+      input: {
+        name: editWhiskeyForm.name,
+        distillery: editWhiskeyForm.distillery,
+        region: editWhiskeyForm.region,
+        age: editWhiskeyForm.age,
+        abv: editWhiskeyForm.abv,
+        description: editWhiskeyForm.description,
+      },
     });
     setEditingWhiskeyId(null);
     setEditWhiskeyForm({
-      eventId: eventId!,
-      whiskeyId: '',
       name: '',
       distillery: '',
       region: '',
@@ -127,11 +128,9 @@ export default function EventDetailPage() {
     });
   };
 
-  const startEditWhiskey = (whiskey: Whiskey) => {
+  const startEditWhiskey = (whiskey: EventWhiskey) => {
     setEditingWhiskeyId(whiskey.id);
     setEditWhiskeyForm({
-      eventId: eventId!,
-      whiskeyId: whiskey.id,
       name: whiskey.name,
       distillery: whiskey.distillery,
       region: whiskey.region,
@@ -298,9 +297,9 @@ export default function EventDetailPage() {
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={createWhiskey.isPending}
+              disabled={addWhiskey.isPending}
             >
-              {createWhiskey.isPending ? 'Adding...' : 'Add Whiskey'}
+              {addWhiskey.isPending ? 'Adding...' : 'Add Whiskey'}
             </button>
           </div>
         </form>
@@ -478,8 +477,6 @@ export default function EventDetailPage() {
               onClick={() => {
                 setEditingWhiskeyId(null);
                 setEditWhiskeyForm({
-                  eventId: eventId!,
-                  whiskeyId: '',
                   name: '',
                   distillery: '',
                   region: '',
@@ -530,8 +527,8 @@ export default function EventDetailPage() {
                   <button
                     className={styles.deleteBtn}
                     onClick={() => {
-                      if (confirm(`Delete "${whiskey.name}"?`)) {
-                        deleteWhiskey.mutate({
+                      if (confirm(`Remove "${whiskey.name}" from this event?`)) {
+                        removeWhiskey.mutate({
                           eventId: eventId!,
                           whiskeyId: whiskey.id,
                         });

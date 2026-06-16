@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAllWhiskeys } from '@/hooks/useWhiskeys';
-import { useAuth } from '@/hooks/useAuth';
 
 import styles from './RankingPage.module.css';
 
@@ -17,7 +15,7 @@ export default function RankingPage() {
     top: PAGE_SIZE,
     skip: pageIndex * PAGE_SIZE,
   });
-  const { isTaster } = useAuth();
+
 
   const handlePrevPage = () => {
     if (pageIndex > 0) {
@@ -44,71 +42,37 @@ export default function RankingPage() {
         <div className={styles.empty}>No whiskeys rated yet.</div>
       ) : (
         <>
-          <div className={styles.list}>
-            {whiskeys?.map((whiskey, index) =>
-              isTaster ? (
-                <Link
-                  key={whiskey.id}
-                  to={`/events/${whiskey.eventId}/whiskeys/${whiskey.id}`}
-                  className={styles.whiskeyCard}
-                >
-                  <div className={styles.rankNumber}>
-                    {pageIndex * PAGE_SIZE + index + 1}
-                  </div>
-                  <div className={styles.whiskeyInfo}>
-                    <h3>{whiskey.name}</h3>
-                    <p className={styles.whiskeyMeta}>
-                      {whiskey.distillery} · {whiskey.region}
-                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
-                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
-                    </p>
-                  </div>
-                  <div className={styles.ratings}>
-                    <div className={styles.ratingBadge}>
-                      <span className={styles.ratingLabel}>Avg</span>
-                      <span className={styles.ratingValue}>
-                        {whiskey.ratingCount > 0
-                          ? whiskey.averageRating.toFixed(1)
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className={styles.ratingCount}>
-                      ({whiskey.ratingCount}{' '}
-                      {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
-                    </div>
-                  </div>
-                </Link>
-              ) : (
-                <div key={whiskey.id} className={styles.whiskeyCard}>
-                  <div className={styles.rankNumber}>
-                    {pageIndex * PAGE_SIZE + index + 1}
-                  </div>
-                  <div className={styles.whiskeyInfo}>
-                    <h3>{whiskey.name}</h3>
-                    <p className={styles.whiskeyMeta}>
-                      {whiskey.distillery} · {whiskey.region}
-                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
-                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
-                    </p>
-                  </div>
-                  <div className={styles.ratings}>
-                    <div className={styles.ratingBadge}>
-                      <span className={styles.ratingLabel}>Avg</span>
-                      <span className={styles.ratingValue}>
-                        {whiskey.ratingCount > 0
-                          ? whiskey.averageRating.toFixed(1)
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className={styles.ratingCount}>
-                      ({whiskey.ratingCount}{' '}
-                      {whiskey.ratingCount === 1 ? 'rating' : 'ratings'})
-                    </div>
-                  </div>
-                </div>
-              ),
-            )}
-          </div>
+           <div className={styles.list}>
+             {whiskeys?.map((whiskey, index) => (
+               <div key={whiskey.id} className={styles.whiskeyCard}>
+                 <div className={styles.rankNumber}>
+                   {pageIndex * PAGE_SIZE + index + 1}
+                 </div>
+                 <div className={styles.whiskeyInfo}>
+                   <h3>{whiskey.name}</h3>
+                   <p className={styles.whiskeyMeta}>
+                     {whiskey.distillery} · {whiskey.region}
+                     {whiskey.age ? ` · ${whiskey.age}yr` : ''}
+                     {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
+                   </p>
+                 </div>
+                 <div className={styles.ratings}>
+                   <div className={styles.ratingBadge}>
+                     <span className={styles.ratingLabel}>Avg</span>
+                     <span className={styles.ratingValue}>
+                       {whiskey.globalRatingCount > 0
+                         ? whiskey.globalAverageRating.toFixed(1)
+                         : '—'}
+                     </span>
+                   </div>
+                   <div className={styles.ratingCount}>
+                     ({whiskey.globalRatingCount}{' '}
+                     {whiskey.globalRatingCount === 1 ? 'rating' : 'ratings'})
+                   </div>
+                 </div>
+               </div>
+             ))}
+           </div>
 
           <div className={styles.pagination}>
             <button
