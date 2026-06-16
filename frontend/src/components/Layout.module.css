@@ -215,6 +215,33 @@
   .nav {
     display: none;
   }
+
+  .mobileUsername {
+    display: block;
+  }
+}
+
+.mobileHeaderRight {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobileHeaderRight {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.mobileUsername {
+  display: none;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
 }
 
 @media (min-width: 768px) {

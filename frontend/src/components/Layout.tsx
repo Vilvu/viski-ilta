@@ -76,15 +76,20 @@ export default function Layout() {
                 </>
               ))}
           </nav>
-          <button
-            className={styles.hamburger}
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Open menu"
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-          >
-            ☰
-          </button>
+          <div className={styles.mobileHeaderRight}>
+            {isAuthenticated && !isLoading && (
+              <span className={styles.mobileUsername}>{displayName}</span>
+            )}
+            <button
+              className={styles.hamburger}
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+            >
+              ☰
+            </button>
+          </div>
         </div>
         {menuOpen && (
           <>
@@ -100,9 +105,6 @@ export default function Layout() {
                 (isAuthenticated ? (
                   <>
                     <hr className={styles.popoutDivider} />
-                    {!isLoading && isAuthenticated && (
-                      <span className={styles.userName}>{displayName}</span>
-                    )}
                     <button
                       type="button"
                       className={styles.editBtn}
@@ -113,7 +115,7 @@ export default function Layout() {
                       title="Edit display name"
                       role="menuitem"
                     >
-                      ✏️ Edit name
+                      Edit name
                     </button>
                     <a href="/.auth/logout" onClick={closeMenu} role="menuitem">
                       Sign out

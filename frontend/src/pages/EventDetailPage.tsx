@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEvent } from '@/hooks/useEvents';
 import {
   useWhiskeys,
@@ -7,7 +7,7 @@ import {
   useDeleteWhiskey,
   useUpdateWhiskey,
 } from '@/hooks/useWhiskeys';
-import { useUpdateEvent } from '@/hooks/useEvents';
+import { useUpdateEvent, useDeleteEvent } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import type { CreateWhiskeyInput, UpdateWhiskeyInput } from '@/api/whiskeys';
 import type { UpdateEventInput } from '@/api/events';
@@ -16,6 +16,7 @@ import styles from './EventDetailPage.module.css';
 
 export default function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
   const { data: event, isLoading: eventLoading } = useEvent(eventId!);
   const { data: whiskeys, isLoading: whiskeysLoading } = useWhiskeys(eventId!);
   const { isAdmin, isTaster, user } = useAuth();
@@ -23,6 +24,7 @@ export default function EventDetailPage() {
   const deleteWhiskey = useDeleteWhiskey();
   const updateWhiskey = useUpdateWhiskey();
   const updateEvent = useUpdateEvent();
+  const deleteEvent = useDeleteEvent();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<Omit<CreateWhiskeyInput, 'eventId'>>({
     name: '',
@@ -82,6 +84,21 @@ export default function EventDetailPage() {
     if (isAdmin) return true;
     if (isTaster && user && event.createdByUserId === user.id) return true;
     return false;
+  };
+
+  const canDeleteEvent = (): boolean => {
+    if (!event) return false;
+    if (isAdmin) return true;
+    if (isTaster && user && event.createdByUserId === user.id) return true;
+    return false;
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!eventId || !event) return;
+    if (confirm(`Delete "${event.name}"? This action cannot be undone.`)) {
+      await deleteEvent.mutateAsync(eventId);
+      navigate('/');
+    }
   };
 
   const handleWhiskeyEditSubmit = async (e: React.FormEvent) => {
@@ -167,7 +184,16 @@ export default function EventDetailPage() {
           )}
         </div>
         <div className={styles.headerActions}>
-          {canEditEvent() && (
+          {showEventEditForm && canDeleteEvent() && (
+            <button
+              className={styles.deleteEventBtn}
+              onClick={handleDeleteEvent}
+              disabled={deleteEvent.isPending}
+            >
+              {deleteEvent.isPending ? 'Deleting...' : 'Delete Event'}
+            </button>
+          )}
+          {!showEventEditForm && canEditEvent() && (
             <button className={styles.editBtn} onClick={startEditEvent}>
               Edit Event
             </button>
@@ -531,14 +557,6 @@ export default function EventDetailPage() {
                     </p>
                   </div>
                   <div className={styles.ratings}>
-                    <div className={styles.ratingBadge}>
-                      <span className={styles.ratingLabel}>Avg</span>
-                      <span className={styles.ratingValue}>
-                        {whiskey.ratingCount > 0
-                          ? whiskey.averageRating.toFixed(1)
-                          : '—'}
-                      </span>
-                    </div>
                     {whiskey.userRating !== undefined && (
                       <div
                         className={styles.ratingBadge + ' ' + styles.userRating}
@@ -549,6 +567,15 @@ export default function EventDetailPage() {
                         </span>
                       </div>
                     )}
+                    <div className={styles.ratingBadge}>
+                      <span className={styles.ratingLabel}>Avg</span>
+                      <span className={styles.ratingValue}>
+                        {whiskey.ratingCount > 0
+                          ? whiskey.averageRating.toFixed(1)
+                          : '—'}
+                      </span>
+                    </div>
+                    
                   </div>
                 </Link>
               ) : (

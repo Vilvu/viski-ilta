@@ -23,6 +23,22 @@
   gap: 0.5rem;
 }
 
+@media (max-width: 767px) {
+  .eventHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    width: 100%;
+  }
+
+  .headerActions button {
+    flex: 1;
+    min-height: 44px;
+  }
+}
+
 .eventHeader h1 {
   font-family: var(--font-family);
   font-size: 2rem;
@@ -73,6 +89,28 @@
 .editBtn:hover {
   background-color: var(--color-primary);
   color: white;
+}
+
+.deleteEventBtn {
+  background: none;
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.deleteEventBtn:hover {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.deleteEventBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .form {
@@ -217,7 +255,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 3.5rem 1rem 1.25rem;
+  padding: 1rem 1.75rem 1rem 1.25rem;
   color: inherit;
   text-decoration: none;
   gap: 1rem;
