@@ -13,6 +13,17 @@ export function useRatings(eventId: string, whiskeyId: string) {
 }
 
 /**
+ * Fetch all ratings for a catalog whiskey.
+ */
+export function useWhiskeyRatingsGlobally(whiskeyId: string) {
+  return useQuery({
+    queryKey: ['ratings', 'global', whiskeyId],
+    queryFn: () => ratingsApi.getByWhiskey(whiskeyId),
+    enabled: !!whiskeyId,
+  });
+}
+
+/**
  * Upsert the authenticated user's rating for a whiskey in an event.
  */
 export function useUpsertRating() {

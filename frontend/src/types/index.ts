@@ -49,12 +49,10 @@ export interface EventWhiskey {
   createdByUserId?: string;
   createdAt: string;
   updatedAt: string;
-  averageRating: number;  // event-scoped
-  ratingCount: number;    // event-scoped
+  averageRating: number; // event-scoped
+  ratingCount: number; // event-scoped
   userRating?: number;
 }
-
-
 
 export interface Rating {
   id: string;

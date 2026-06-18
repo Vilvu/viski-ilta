@@ -62,9 +62,7 @@ export const catalogWhiskeysApi = {
    * POST /api/whiskeys
    * Create a new catalog whiskey.
    */
-  create: async (
-    input: CreateCatalogWhiskeyInput,
-  ): Promise<CatalogWhiskey> => {
+  create: async (input: CreateCatalogWhiskeyInput): Promise<CatalogWhiskey> => {
     const response = await apiClient.post<ApiResponse<CatalogWhiskey>>(
       '/whiskeys',
       input,
@@ -151,7 +149,9 @@ export const eventWhiskeysApi = {
 };
 
 // Legacy input type aliases for backward compatibility
-export type CreateWhiskeyInput = CreateCatalogWhiskeyInput & { eventId: string };
+export type CreateWhiskeyInput = CreateCatalogWhiskeyInput & {
+  eventId: string;
+};
 export type UpdateWhiskeyInput = UpdateCatalogWhiskeyInput & {
   eventId: string;
   whiskeyId: string;

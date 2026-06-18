@@ -269,28 +269,59 @@ async function deleteCatalogWhiskey(
       };
     }
 
-    // Check if whiskey is linked to any event.
-    // eventWhiskeys is partitioned by /eventId, so filtering only on whiskeyId
-    // requires a cross-partition fan-out query.
+    // Delete the catalog whiskey and cascade delete to all events and ratings.
     const eventWhiskeysContainer = getContainer('eventWhiskeys');
     const { resources: links } = await eventWhiskeysContainer.items
       .query(
         {
-          query: 'SELECT c.id FROM c WHERE c.whiskeyId = @whiskeyId',
+          query: 'SELECT c.id, c.eventId FROM c WHERE c.whiskeyId = @whiskeyId',
           parameters: [{ name: '@whiskeyId', value: whiskeyId }],
         },
         { enableCrossPartitionQuery: true },
       )
       .fetchAll();
 
-    if (links.length > 0) {
-      return {
-        status: 409,
-        body: JSON.stringify({
-          error: `Whiskey is linked to ${links.length} event(s); remove all links before deletion`,
-        }),
-      };
-    }
+    const ratingsContainer = getContainer('ratings');
+    const eventsContainer = getContainer('events');
+
+    // Cascade delete links and ratings, and decrement event whiskeyCount concurrently
+    await Promise.all(
+      links.map(async (link: any) => {
+        const eventId = link.eventId;
+
+        // Fetch ratings to delete
+        const { resources: ratingsToDelete } = await ratingsContainer.items
+          .query({
+            query:
+              'SELECT c.id FROM c WHERE c.eventId = @eventId AND c.whiskeyId = @whiskeyId',
+            parameters: [
+              { name: '@eventId', value: eventId },
+              { name: '@whiskeyId', value: whiskeyId },
+            ],
+          })
+          .fetchAll();
+
+        // Delete all ratings and the link concurrently
+        const deletePromises: Promise<any>[] = ratingsToDelete.map((rating: any) =>
+          ratingsContainer.item(rating.id, eventId).delete(),
+        );
+        deletePromises.push(
+          eventWhiskeysContainer.item(link.id, eventId).delete(),
+        );
+
+        await Promise.all(deletePromises);
+
+        // Decrement event whiskeyCount
+        const { resource: event } = await eventsContainer
+          .item(eventId, eventId)
+          .read();
+        if (event && event.whiskeyCount > 0) {
+          await eventsContainer
+            .item(eventId, eventId)
+            .patch([{ op: 'increment', path: '/whiskeyCount', value: -1 }]);
+        }
+      }),
+    );
 
     await container.item(whiskeyId, whiskeyId).delete();
 

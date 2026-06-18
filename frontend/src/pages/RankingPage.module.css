@@ -51,10 +51,16 @@
   box-shadow: var(--shadow-lg);
 }
 
-a.whiskeyCard {
+.whiskeyCardLink {
   text-decoration: none;
   color: inherit;
   cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.whiskeyCardLink:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
 .rankNumber {

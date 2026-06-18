@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import EventsPage from '@/pages/EventsPage';
 import EventDetailPage from '@/pages/EventDetailPage';
 import WhiskeyDetailPage from '@/pages/WhiskeyDetailPage';
+import CatalogWhiskeyDetailPage from '@/pages/CatalogWhiskeyDetailPage';
 import RankingPage from '@/pages/RankingPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import TasterRoute from '@/components/ProtectedRoute';
@@ -23,6 +24,14 @@ function App() {
         <Route index element={<EventsPage />} />
         <Route path="ranking" element={<RankingPage />} />
         <Route path="events/:eventId" element={<EventDetailPage />} />
+        <Route
+          path="whiskeys/:whiskeyId"
+          element={
+            <TasterRoute>
+              <CatalogWhiskeyDetailPage />
+            </TasterRoute>
+          }
+        />
         <Route
           path="events/:eventId/whiskeys/:whiskeyId"
           element={

@@ -39,8 +39,13 @@ export function useWhiskey(eventId: string, whiskeyId: string) {
 export function useAddWhiskeyToEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ eventId, input }: { eventId: string; input: AddWhiskeyToEventInput }) =>
-      eventWhiskeysApi.addToEvent(eventId, input),
+    mutationFn: ({
+      eventId,
+      input,
+    }: {
+      eventId: string;
+      input: AddWhiskeyToEventInput;
+    }) => eventWhiskeysApi.addToEvent(eventId, input),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['whiskeys', variables.eventId],
@@ -58,8 +63,13 @@ export function useAddWhiskeyToEvent() {
 export function useRemoveWhiskeyFromEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ eventId, whiskeyId }: { eventId: string; whiskeyId: string }) =>
-      eventWhiskeysApi.removeFromEvent(eventId, whiskeyId),
+    mutationFn: ({
+      eventId,
+      whiskeyId,
+    }: {
+      eventId: string;
+      whiskeyId: string;
+    }) => eventWhiskeysApi.removeFromEvent(eventId, whiskeyId),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['whiskeys', variables.eventId],
@@ -148,6 +158,10 @@ export function useDeleteCatalogWhiskey() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['whiskeys', 'ranking'],
+      });
+      // Invalidate all event-linked whiskeys since deleting the catalog item cascades
+      queryClient.invalidateQueries({
+        queryKey: ['whiskeys'],
       });
     },
   });

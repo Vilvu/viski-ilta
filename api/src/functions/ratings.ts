@@ -180,7 +180,44 @@ async function deleteMyRating(
   }
 }
 
+/**
+ * GET /api/whiskeys/{whiskeyId}/ratings
+ * List all ratings for a catalog whiskey across all events.
+ */
+async function getWhiskeyRatingsGlobally(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    requireTaster(req);
+    const { whiskeyId } = req.params;
+    const container = getContainer('ratings');
+
+    const { resources } = await container.items
+      .query(
+        {
+          query:
+            'SELECT TOP 100 c.id, c.whiskeyId, c.score, c.notes, c.userName, c.createdAt, c.userId FROM c WHERE c.whiskeyId = @whiskeyId ORDER BY c.createdAt DESC',
+          parameters: [{ name: '@whiskeyId', value: whiskeyId }],
+        },
+        { enableCrossPartitionQuery: true }
+      )
+      .fetchAll();
+
+    return ok(resources);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 // Route registrations
+app.http('getWhiskeyRatingsGlobally', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'whiskeys/{whiskeyId}/ratings',
+  handler: getWhiskeyRatingsGlobally,
+});
+
 app.http('getRatings', {
   methods: ['GET'],
   authLevel: 'anonymous',

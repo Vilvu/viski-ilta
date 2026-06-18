@@ -1,39 +1,29 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  useWhiskey,
+  useCatalogWhiskey,
   useUpdateWhiskey,
-  useRemoveWhiskeyFromEvent,
+  useDeleteCatalogWhiskey,
 } from '@/hooks/useWhiskeys';
-import { useEvent } from '@/hooks/useEvents';
-import {
-  useRatings,
-  useUpsertRating,
-  useDeleteRating,
-} from '@/hooks/useRatings';
+import { useWhiskeyRatingsGlobally } from '@/hooks/useRatings';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import type { UpdateCatalogWhiskeyInput } from '@/api/whiskeys';
-import styles from './WhiskeyDetailPage.module.css';
+import styles from './CatalogWhiskeyDetailPage.module.css';
 
-export default function WhiskeyDetailPage() {
-  const { eventId, whiskeyId } = useParams<{
-    eventId: string;
+export default function CatalogWhiskeyDetailPage() {
+  const { whiskeyId } = useParams<{
     whiskeyId: string;
   }>();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const { data: whiskey, isLoading } = useWhiskey(eventId!, whiskeyId!);
-  const { data: event } = useEvent(eventId!);
-  const { data: ratings } = useRatings(eventId!, whiskeyId!);
-  const { isAuthenticated, isTaster, user, isAdmin } = useAuth();
-  const upsertRating = useUpsertRating();
-  const deleteRating = useDeleteRating();
+  const { data: whiskey, isLoading } = useCatalogWhiskey(whiskeyId!);
+  const { data: ratings } = useWhiskeyRatingsGlobally(whiskeyId!);
+  const { isTaster, user, isAdmin } = useAuth();
+
   const updateWhiskey = useUpdateWhiskey();
-  const removeWhiskey = useRemoveWhiskeyFromEvent();
-  const [score, setScore] = useState<number>(0);
-  const [notes, setNotes] = useState('');
-  const [editMode, setEditMode] = useState(false);
+  const deleteWhiskey = useDeleteCatalogWhiskey();
+
   const [showEditForm, setShowEditForm] = useState(false);
   const [editForm, setEditForm] = useState<UpdateCatalogWhiskeyInput>({
     name: '',
@@ -44,37 +34,11 @@ export default function WhiskeyDetailPage() {
     description: '',
   });
 
-  const myRating = ratings?.find((r) => r.userId === user?.id);
-
   const canEditWhiskey = (): boolean => {
     if (!whiskey) return false;
     if (isAdmin) return true;
     if (isTaster && user && whiskey.createdByUserId === user.id) return true;
     return false;
-  };
-
-  const canDeleteWhiskey = (): boolean => canEditWhiskey();
-
-  const handleRate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await upsertRating.mutateAsync({
-      eventId: eventId!,
-      whiskeyId: whiskeyId!,
-      input: {
-        score,
-        notes,
-      },
-    });
-    setEditMode(false);
-  };
-
-  const handleDeleteRating = async () => {
-    if (confirm(t('whiskeyDetail.confirmRemoveRating'))) {
-      await deleteRating.mutateAsync({
-        eventId: eventId!,
-        whiskeyId: whiskeyId!,
-      });
-    }
   };
 
   const startEditWhiskey = () => {
@@ -116,13 +80,21 @@ export default function WhiskeyDetailPage() {
   };
 
   const handleDeleteWhiskey = async () => {
-    if (!eventId || !whiskeyId || !whiskey) return;
+    if (!whiskeyId || !whiskey) return;
     if (confirm(t('whiskeyDetail.confirmDelete', { name: whiskey.name }))) {
-      await removeWhiskey.mutateAsync({
-        eventId,
-        whiskeyId,
-      });
-      navigate(`/events/${eventId}`);
+      try {
+        await deleteWhiskey.mutateAsync(whiskeyId);
+        navigate(`/ranking`);
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const err = error as any;
+        if (err.response?.status === 409) {
+          alert(t('whiskeyDetail.cannotDeleteLinked'));
+        } else {
+          console.error(err);
+          alert(t('common.error'));
+        }
+      }
     }
   };
 
@@ -134,9 +106,7 @@ export default function WhiskeyDetailPage() {
   return (
     <div className={styles.page}>
       <div className={styles.breadcrumb}>
-        <Link to="/">{t('whiskeyDetail.breadcrumb')}</Link> /{' '}
-        <Link to={`/events/${eventId}`}>{event?.name ?? eventId}</Link> /{' '}
-        {whiskey.name}
+        <Link to="/ranking">{t('ranking.title')}</Link> / {whiskey.name}
       </div>
 
       <div className={styles.whiskeyHeader}>
@@ -157,13 +127,13 @@ export default function WhiskeyDetailPage() {
           )}
         </div>
         <div className={styles.headerActions}>
-          {showEditForm && canDeleteWhiskey() && (
+          {showEditForm && canEditWhiskey() && (
             <button
               className={styles.deleteWhiskeyBtn}
               onClick={handleDeleteWhiskey}
-              disabled={removeWhiskey.isPending}
+              disabled={deleteWhiskey.isPending}
             >
-              {removeWhiskey.isPending
+              {deleteWhiskey.isPending
                 ? t('common.deleting')
                 : t('whiskeyDetail.deleteWhiskey')}
             </button>
@@ -176,11 +146,15 @@ export default function WhiskeyDetailPage() {
         </div>
         <div className={styles.overallRating}>
           <div className={styles.ratingNumber}>
-            {whiskey.ratingCount > 0 ? whiskey.averageRating.toFixed(1) : '—'}
+            {whiskey.globalRatingCount > 0
+              ? whiskey.globalAverageRating.toFixed(1)
+              : '—'}
           </div>
           <div className={styles.ratingLabel}>
-            {whiskey.ratingCount > 0
-              ? t('whiskeyDetail.ratingCount', { count: whiskey.ratingCount })
+            {whiskey.globalRatingCount > 0
+              ? t('whiskeyDetail.ratingCount', {
+                  count: whiskey.globalRatingCount,
+                })
               : t('whiskeyDetail.noRatings')}
           </div>
         </div>
@@ -304,101 +278,6 @@ export default function WhiskeyDetailPage() {
             </button>
           </div>
         </form>
-      )}
-
-      {isAuthenticated && isTaster && (
-        <div className={styles.myRatingSection}>
-          <h2>{t('whiskeyDetail.yourRating')}</h2>
-          {myRating && !editMode ? (
-            <div className={styles.myRatingDisplay}>
-              <div className={styles.myScore}>{myRating.score}/10</div>
-              {myRating.notes && (
-                <p className={styles.myNotes}>{myRating.notes}</p>
-              )}
-              <div className={styles.myRatingActions}>
-                <button
-                  className={styles.editBtn}
-                  onClick={() => {
-                    setScore(myRating.score);
-                    setNotes(myRating.notes ?? '');
-                    setEditMode(true);
-                  }}
-                >
-                  {t('common.edit')}
-                </button>
-                <button
-                  className={styles.deleteBtn}
-                  onClick={handleDeleteRating}
-                >
-                  {t('common.remove')}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <form className={styles.ratingForm} onSubmit={handleRate}>
-              <div className={styles.scoreSelector}>
-                <label>{t('whiskeyDetail.scoreLabel')}</label>
-                <div className={styles.scoreButtons}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      className={`${styles.scoreBtn} ${score === n ? styles.selected : ''}`}
-                      onClick={() => setScore(n)}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>{t('whiskeyDetail.notesLabel')}</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Tasting notes, impressions..."
-                  rows={3}
-                />
-              </div>
-              <div className={styles.formActions}>
-                {editMode && (
-                  <button
-                    type="button"
-                    className={styles.cancelBtn}
-                    onClick={() => setEditMode(false)}
-                  >
-                    {t('common.cancel')}
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className={styles.submitBtn}
-                  disabled={score === 0 || upsertRating.isPending}
-                >
-                  {upsertRating.isPending
-                    ? t('common.saving')
-                    : myRating
-                      ? t('whiskeyDetail.updateRating')
-                      : t('whiskeyDetail.submitRating')}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-
-      {isAuthenticated && !isTaster && (
-        <div className={styles.signInPrompt}>
-          <p>{t('whiskeyDetail.tasterRequired')}</p>
-        </div>
-      )}
-
-      {!isAuthenticated && (
-        <div className={styles.signInPrompt}>
-          <a href="/.auth/login/google" className={styles.signInBtn}>
-            {t('whiskeyDetail.signInPrompt')}
-          </a>
-        </div>
       )}
 
       <div className={styles.allRatings}>

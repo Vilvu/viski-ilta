@@ -23,6 +23,17 @@ export const ratingsApi = {
   },
 
   /**
+   * GET /api/whiskeys/{whiskeyId}/ratings
+   * List all ratings for a catalog whiskey.
+   */
+  getByWhiskey: async (whiskeyId: string): Promise<Rating[]> => {
+    const response = await apiClient.get<ApiResponse<Rating[]>>(
+      `/whiskeys/${whiskeyId}/ratings`,
+    );
+    return response.data.data;
+  },
+
+  /**
    * PUT /api/events/{eventId}/whiskeys/{whiskeyId}/ratings/me
    * Upsert the authenticated user's rating for a whiskey in an event.
    */

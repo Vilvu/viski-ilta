@@ -49,94 +49,94 @@ export default function Layout() {
           <Link to="/" className={styles.logo}>
             🥃<span className={styles.logoText}>{t('app.name')}</span>
           </Link>
-           <nav className={styles.nav}>
-             <Link to="/">{t('nav.events')}</Link>
-             <Link to="/ranking">{t('nav.ranking')}</Link>
-             {!isLoading &&
-               (isAuthenticated ? (
-                 <div className={styles.userMenu}>
-                   {!isLoading && isAuthenticated && (
-                     <span className={styles.userName}>{displayName}</span>
-                   )}
-                   <button
-                     type="button"
-                     className={styles.editBtn}
-                     onClick={() => setShowEditModal(true)}
-                     title={t('nav.editDisplayNameTitle')}
-                   >
-                     ✏️
-                   </button>
-                   <a href="/.auth/logout">{t('nav.signOut')}</a>
-                 </div>
-               ) : (
-                 <>
-                   {!isLoading && isAuthenticated && (
-                     <span className={styles.userName}>{displayName}</span>
-                   )}
-                   <a href="/.auth/login/aad" className={styles.signInBtn}>
-                     {t('nav.signIn')}
-                   </a>
-                 </>
-               ))}
-             <LanguageSwitcher />
-           </nav>
+          <nav className={styles.nav}>
+            <Link to="/">{t('nav.events')}</Link>
+            <Link to="/ranking">{t('nav.ranking')}</Link>
+            {!isLoading &&
+              (isAuthenticated ? (
+                <div className={styles.userMenu}>
+                  {!isLoading && isAuthenticated && (
+                    <span className={styles.userName}>{displayName}</span>
+                  )}
+                  <button
+                    type="button"
+                    className={styles.editBtn}
+                    onClick={() => setShowEditModal(true)}
+                    title={t('nav.editDisplayNameTitle')}
+                  >
+                    ✏️
+                  </button>
+                  <a href="/.auth/logout">{t('nav.signOut')}</a>
+                </div>
+              ) : (
+                <>
+                  {!isLoading && isAuthenticated && (
+                    <span className={styles.userName}>{displayName}</span>
+                  )}
+                  <a href="/.auth/login/aad" className={styles.signInBtn}>
+                    {t('nav.signIn')}
+                  </a>
+                </>
+              ))}
+            <LanguageSwitcher />
+          </nav>
           <div className={styles.mobileHeaderRight}>
             {isAuthenticated && !isLoading && (
               <span className={styles.mobileUsername}>{displayName}</span>
             )}
             <button
-               className={styles.hamburger}
-               onClick={() => setMenuOpen(!menuOpen)}
-               aria-label={t('nav.openMenu')}
-               aria-expanded={menuOpen}
-               aria-haspopup="menu"
-             >
-               ☰
-             </button>
+              className={styles.hamburger}
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label={t('nav.openMenu')}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+            >
+              ☰
+            </button>
           </div>
         </div>
         {menuOpen && (
           <>
             <div className={styles.backdrop} onClick={closeMenu} />
             <div className={styles.popout} role="menu">
-               <a href="/" onClick={closeMenu} role="menuitem">
-                 {t('nav.events')}
-               </a>
-               <a href="/ranking" onClick={closeMenu} role="menuitem">
-                 {t('nav.ranking')}
-               </a>
-               <LanguageSwitcher />
-               {!isLoading &&
-                 (isAuthenticated ? (
-                   <>
-                     <hr className={styles.popoutDivider} />
-                     <button
-                       type="button"
-                       className={styles.editBtn}
-                       onClick={() => {
-                         setShowEditModal(true);
-                         closeMenu();
-                       }}
-                       title={t('nav.editDisplayNameTitle')}
-                       role="menuitem"
-                     >
-                       {t('nav.editName')}
-                     </button>
-                     <a href="/.auth/logout" onClick={closeMenu} role="menuitem">
-                       {t('nav.signOut')}
-                     </a>
-                   </>
-                 ) : (
-                   <a
-                     href="/.auth/login/aad"
-                     className={styles.signInBtn}
-                     onClick={closeMenu}
-                     role="menuitem"
-                   >
-                     {t('nav.signIn')}
-                   </a>
-                 ))}
-             </div>
+              <a href="/" onClick={closeMenu} role="menuitem">
+                {t('nav.events')}
+              </a>
+              <a href="/ranking" onClick={closeMenu} role="menuitem">
+                {t('nav.ranking')}
+              </a>
+              <LanguageSwitcher />
+              {!isLoading &&
+                (isAuthenticated ? (
+                  <>
+                    <hr className={styles.popoutDivider} />
+                    <button
+                      type="button"
+                      className={styles.editBtn}
+                      onClick={() => {
+                        setShowEditModal(true);
+                        closeMenu();
+                      }}
+                      title={t('nav.editDisplayNameTitle')}
+                      role="menuitem"
+                    >
+                      {t('nav.editName')}
+                    </button>
+                    <a href="/.auth/logout" onClick={closeMenu} role="menuitem">
+                      {t('nav.signOut')}
+                    </a>
+                  </>
+                ) : (
+                  <a
+                    href="/.auth/login/aad"
+                    className={styles.signInBtn}
+                    onClick={closeMenu}
+                    role="menuitem"
+                  >
+                    {t('nav.signIn')}
+                  </a>
+                ))}
+            </div>
           </>
         )}
       </header>
@@ -144,8 +144,8 @@ export default function Layout() {
         <Outlet />
       </main>
       <footer className={styles.footer}>
-         <p>© 2024 {t('app.name')}</p>
-       </footer>
+        <p>© 2024 {t('app.name')}</p>
+      </footer>
       {isAuthenticated &&
         !isLoading &&
         !profileLoading &&
