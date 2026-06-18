@@ -284,12 +284,12 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A[Browser] -->|Click Sign In| B[/.auth/login/aad]
+    A[Browser] -->|Click Sign In| B["/.auth/login/aad"]
     B -->|302 Redirect| C[Microsoft Entra ID]
     C -->|User consents| D[Entra ID callback]
     D -->|Auth code| E[SWA Auth endpoint]
     E -->|Set cookie| F[Browser - authenticated]
-    F -->|Subsequent requests include cookie| G[SWA adds x-ms-client-principal header]
+    F -->|Subsequent requests include cookie| G["SWA adds x-ms-client-principal header"]
 ```
 
 ---

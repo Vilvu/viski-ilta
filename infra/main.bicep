@@ -1,6 +1,6 @@
 targetScope = 'subscription'
 
-param location string = 'northeurope'
+param location string = 'westeurope'
 param resourceGroupName string
 param cosmosAccountName string
 param swaName string
