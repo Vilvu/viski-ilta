@@ -16,6 +16,13 @@
   justify-content: space-between;
   margin-bottom: 2rem;
   gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .whiskeyHeader h1 {
@@ -111,6 +118,77 @@
   padding: 0.3rem 0.75rem;
   border-radius: var(--border-radius);
   font-size: 0.9rem;
+}
+
+.headerActions .editBtn {
+  background: none;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.headerActions .editBtn:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.deleteWhiskeyBtn {
+  background: none;
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.deleteWhiskeyBtn:hover {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.deleteWhiskeyBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+}
+
+.form h2 {
+  margin-bottom: 1rem;
+  color: var(--color-primary);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.formGroup input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ratingForm { }

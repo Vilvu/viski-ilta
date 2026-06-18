@@ -4,17 +4,13 @@ import { useEvent } from '@/hooks/useEvents';
 import {
   useWhiskeys,
   useAddWhiskeyToEvent,
-  useRemoveWhiskeyFromEvent,
-  useUpdateWhiskey,
 } from '@/hooks/useWhiskeys';
 import { useUpdateEvent, useDeleteEvent } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import type {
   CreateCatalogWhiskeyInput,
-  UpdateCatalogWhiskeyInput,
 } from '@/api/whiskeys';
 import type { UpdateEventInput } from '@/api/events';
-import type { EventWhiskey } from '@/types';
 import styles from './EventDetailPage.module.css';
 
 export default function EventDetailPage() {
@@ -24,21 +20,10 @@ export default function EventDetailPage() {
   const { data: whiskeys, isLoading: whiskeysLoading } = useWhiskeys(eventId!);
   const { isAdmin, isTaster, user } = useAuth();
   const addWhiskey = useAddWhiskeyToEvent();
-  const removeWhiskey = useRemoveWhiskeyFromEvent();
-  const updateWhiskey = useUpdateWhiskey();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<CreateCatalogWhiskeyInput>({
-    name: '',
-    distillery: '',
-    region: '',
-    age: undefined,
-    abv: undefined,
-    description: '',
-  });
-  const [editingWhiskeyId, setEditingWhiskeyId] = useState<string | null>(null);
-  const [editWhiskeyForm, setEditWhiskeyForm] = useState<UpdateCatalogWhiskeyInput>({
     name: '',
     distillery: '',
     region: '',
@@ -68,18 +53,6 @@ export default function EventDetailPage() {
     setShowForm(false);
   };
 
-  const canDeleteWhiskey = (whiskey: EventWhiskey): boolean => {
-    if (isAdmin) return true;
-    if (isTaster && user && whiskey.createdByUserId === user.id) return true;
-    return false;
-  };
-
-  const canEditWhiskey = (whiskey: EventWhiskey): boolean => {
-    if (isAdmin) return true;
-    if (isTaster && user && whiskey.createdByUserId === user.id) return true;
-    return false;
-  };
-
   const canEditEvent = (): boolean => {
     if (!event) return false;
     if (isAdmin) return true;
@@ -102,61 +75,27 @@ export default function EventDetailPage() {
     }
   };
 
-  const handleWhiskeyEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingWhiskeyId || !eventId) return;
-    // updateWhiskey now edits the catalog whiskey (global), not event-scoped
-    await updateWhiskey.mutateAsync({
-      whiskeyId: editingWhiskeyId,
-      input: {
-        name: editWhiskeyForm.name,
-        distillery: editWhiskeyForm.distillery,
-        region: editWhiskeyForm.region,
-        age: editWhiskeyForm.age,
-        abv: editWhiskeyForm.abv,
-        description: editWhiskeyForm.description,
-      },
-    });
-    setEditingWhiskeyId(null);
-    setEditWhiskeyForm({
-      name: '',
-      distillery: '',
-      region: '',
-      age: undefined,
-      abv: undefined,
-      description: '',
-    });
-  };
-
-  const startEditWhiskey = (whiskey: EventWhiskey) => {
-    setEditingWhiskeyId(whiskey.id);
-    setEditWhiskeyForm({
-      name: whiskey.name,
-      distillery: whiskey.distillery,
-      region: whiskey.region,
-      age: whiskey.age,
-      abv: whiskey.abv,
-      description: whiskey.description,
-    });
-  };
-
   const handleEventEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventId) return;
-    await updateEvent.mutateAsync({ id: eventId, input: eventEditForm });
+    const submitData = {
+      ...eventEditForm,
+      location: eventEditForm.location || undefined,
+    };
+    await updateEvent.mutateAsync({ id: eventId, input: submitData as UpdateEventInput });
     setShowEventEditForm(false);
   };
 
-  const startEditEvent = () => {
-    if (!event) return;
-    setEventEditForm({
-      name: event.name,
-      description: event.description,
-      date: event.date,
-      location: event.location,
-    });
-    setShowEventEditForm(true);
-  };
+   const startEditEvent = () => {
+     if (!event) return;
+     setEventEditForm({
+       name: event.name,
+       description: event.description,
+       date: event.date,
+       location: event.location || '',
+     });
+     setShowEventEditForm(true);
+   };
 
   if (eventLoading)
     return <div className={styles.loading}>Loading event...</div>;
@@ -171,13 +110,13 @@ export default function EventDetailPage() {
       <div className={styles.eventHeader}>
         <div>
           <h1>{event.name}</h1>
-          <p className={styles.meta}>
-            📅{' '}
-            {new Date(event.date).toLocaleDateString('en-FI', {
-              dateStyle: 'long',
-            })}{' '}
-            · 📍 {event.location}
-          </p>
+           <p className={styles.meta}>
+             📅{' '}
+             {new Date(event.date).toLocaleDateString('en-FI', {
+               dateStyle: 'long',
+             })}
+             {event.location && ` · 📍 ${event.location}`}
+           </p>
           {event.description && (
             <p className={styles.description}>{event.description}</p>
           )}
@@ -347,11 +286,10 @@ export default function EventDetailPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label htmlFor="edit-location">Location *</label>
+              <label htmlFor="edit-location">Location</label>
               <input
                 id="edit-location"
                 type="text"
-                required
                 value={eventEditForm.location}
                 onChange={(e) =>
                   setEventEditForm((f) => ({ ...f, location: e.target.value }))
@@ -379,127 +317,7 @@ export default function EventDetailPage() {
         </form>
       )}
 
-      {editingWhiskeyId && (
-        <form className={styles.form} onSubmit={handleWhiskeyEditSubmit}>
-          <h2>Edit Whiskey</h2>
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>Name *</label>
-              <input
-                type="text"
-                required
-                value={editWhiskeyForm.name}
-                onChange={(e) =>
-                  setEditWhiskeyForm((f) => ({ ...f, name: e.target.value }))
-                }
-                placeholder="e.g. Glenfiddich 12"
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Distillery *</label>
-              <input
-                type="text"
-                required
-                value={editWhiskeyForm.distillery}
-                onChange={(e) =>
-                  setEditWhiskeyForm((f) => ({
-                    ...f,
-                    distillery: e.target.value,
-                  }))
-                }
-                placeholder="e.g. Glenfiddich"
-              />
-            </div>
-          </div>
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>Region *</label>
-              <input
-                type="text"
-                required
-                value={editWhiskeyForm.region}
-                onChange={(e) =>
-                  setEditWhiskeyForm((f) => ({ ...f, region: e.target.value }))
-                }
-                placeholder="e.g. Speyside"
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Age (years)</label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={editWhiskeyForm.age ?? ''}
-                onChange={(e) =>
-                  setEditWhiskeyForm((f) => ({
-                    ...f,
-                    age: e.target.value ? Number(e.target.value) : undefined,
-                  }))
-                }
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>ABV (%)</label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                step="0.1"
-                value={editWhiskeyForm.abv ?? ''}
-                onChange={(e) =>
-                  setEditWhiskeyForm((f) => ({
-                    ...f,
-                    abv: e.target.value ? Number(e.target.value) : undefined,
-                  }))
-                }
-              />
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Description</label>
-            <textarea
-              value={editWhiskeyForm.description}
-              onChange={(e) =>
-                setEditWhiskeyForm((f) => ({
-                  ...f,
-                  description: e.target.value,
-                }))
-              }
-              rows={2}
-              placeholder="Tasting notes, style..."
-            />
-          </div>
-          <div className={styles.formActions}>
-            <button
-              type="button"
-              className={styles.cancelBtn}
-              onClick={() => {
-                setEditingWhiskeyId(null);
-                setEditWhiskeyForm({
-                  name: '',
-                  distillery: '',
-                  region: '',
-                  age: undefined,
-                  abv: undefined,
-                  description: '',
-                });
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={styles.submitBtn}
-              disabled={updateWhiskey.isPending}
-            >
-              {updateWhiskey.isPending ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      <h2 className={styles.sectionTitle}>
+       <h2 className={styles.sectionTitle}>
         Whiskeys ({whiskeys?.length ?? 0})
       </h2>
 
@@ -511,36 +329,9 @@ export default function EventDetailPage() {
         </div>
       ) : (
         <div className={styles.list}>
-          {whiskeys?.map((whiskey) => (
-            <div key={whiskey.id} className={styles.whiskeyCard}>
-              <div className={styles.whiskeyCardActions}>
-                {canEditWhiskey(whiskey) && (
-                  <button
-                    className={styles.editBtn}
-                    onClick={() => startEditWhiskey(whiskey)}
-                    title="Edit"
-                  >
-                    ✎
-                  </button>
-                )}
-                {canDeleteWhiskey(whiskey) && (
-                  <button
-                    className={styles.deleteBtn}
-                    onClick={() => {
-                      if (confirm(`Remove "${whiskey.name}" from this event?`)) {
-                        removeWhiskey.mutate({
-                          eventId: eventId!,
-                          whiskeyId: whiskey.id,
-                        });
-                      }
-                    }}
-                    title="Delete"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              {isTaster ? (
+           {whiskeys?.map((whiskey) => (
+             <div key={whiskey.id} className={styles.whiskeyCard}>
+               {isTaster ? (
                 <Link
                   to={`/events/${eventId}/whiskeys/${whiskey.id}`}
                   className={styles.whiskeyLink}

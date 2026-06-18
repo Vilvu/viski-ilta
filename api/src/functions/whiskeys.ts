@@ -234,7 +234,7 @@ async function updateCatalogWhiskey(
       globalRatingCount: resource.globalRatingCount,
     };
 
-    const { resource: updatedResource } = await container.items.upsert(updated);
+    const { resource: updatedResource } = await container.item(whiskeyId, whiskeyId).replace(updated);
     return ok(updatedResource);
   } catch (error) {
     return handleError(error);

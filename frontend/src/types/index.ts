@@ -10,7 +10,7 @@ export interface Event {
   name: string;
   description: string;
   date: string;
-  location: string;
+  location?: string;
   createdBy: string;
   createdByUserId?: string;
   createdAt: string;

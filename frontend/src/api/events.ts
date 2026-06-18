@@ -5,7 +5,7 @@ export interface CreateEventInput {
   name: string;
   description: string;
   date: string;
-  location: string;
+  location?: string;
 }
 
 export interface UpdateEventInput {

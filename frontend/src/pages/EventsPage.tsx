@@ -22,7 +22,11 @@ export default function EventsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createEvent.mutateAsync(form);
+    const submitData = {
+      ...form,
+      location: form.location || undefined,
+    };
+    await createEvent.mutateAsync(submitData as CreateEventInput);
     setForm({ name: '', description: '', date: '', location: '' });
     setShowForm(false);
   };
@@ -84,11 +88,10 @@ export default function EventsPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label htmlFor="location">Location *</label>
+              <label htmlFor="location">Location</label>
               <input
                 id="location"
                 type="text"
-                required
                 value={form.location}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, location: e.target.value }))
@@ -128,7 +131,7 @@ export default function EventsPage() {
                     dateStyle: 'long',
                   })}
                 </p>
-                <p className={styles.cardMeta}>📍 {event.location}</p>
+                {event.location && <p className={styles.cardMeta}>📍 {event.location}</p>}
                 {event.description && (
                   <p className={styles.cardDescription}>{event.description}</p>
                 )}

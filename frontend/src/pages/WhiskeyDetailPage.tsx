@@ -1,5 +1,9 @@
-import { useParams, Link } from 'react-router-dom';
-import { useWhiskey } from '@/hooks/useWhiskeys';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { 
+  useWhiskey,
+  useUpdateWhiskey,
+  useRemoveWhiskeyFromEvent,
+} from '@/hooks/useWhiskeys';
 import {
   useRatings,
   useUpsertRating,
@@ -7,6 +11,7 @@ import {
 } from '@/hooks/useRatings';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
+import type { UpdateCatalogWhiskeyInput } from '@/api/whiskeys';
 import styles from './WhiskeyDetailPage.module.css';
 
 export default function WhiskeyDetailPage() {
@@ -14,16 +19,37 @@ export default function WhiskeyDetailPage() {
     eventId: string;
     whiskeyId: string;
   }>();
+  const navigate = useNavigate();
   const { data: whiskey, isLoading } = useWhiskey(eventId!, whiskeyId!);
   const { data: ratings } = useRatings(eventId!, whiskeyId!);
-  const { isAuthenticated, isTaster, user } = useAuth();
+  const { isAuthenticated, isTaster, user, isAdmin } = useAuth();
   const upsertRating = useUpsertRating();
   const deleteRating = useDeleteRating();
+  const updateWhiskey = useUpdateWhiskey();
+  const removeWhiskey = useRemoveWhiskeyFromEvent();
   const [score, setScore] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [editMode, setEditMode] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editForm, setEditForm] = useState<UpdateCatalogWhiskeyInput>({
+    name: '',
+    distillery: '',
+    region: '',
+    age: undefined,
+    abv: undefined,
+    description: '',
+  });
 
   const myRating = ratings?.find((r) => r.userId === user?.id);
+
+  const canEditWhiskey = (): boolean => {
+    if (!whiskey) return false;
+    if (isAdmin) return true;
+    if (isTaster && user && whiskey.createdByUserId === user.id) return true;
+    return false;
+  };
+
+  const canDeleteWhiskey = (): boolean => canEditWhiskey();
 
   const handleRate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +73,55 @@ export default function WhiskeyDetailPage() {
     }
   };
 
+  const startEditWhiskey = () => {
+    if (!whiskey) return;
+    setEditForm({
+      name: whiskey.name,
+      distillery: whiskey.distillery,
+      region: whiskey.region,
+      age: whiskey.age,
+      abv: whiskey.abv,
+      description: whiskey.description,
+    });
+    setShowEditForm(true);
+  };
+
+  const handleWhiskeyEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!whiskeyId) return;
+    await updateWhiskey.mutateAsync({
+      whiskeyId,
+      input: {
+        name: editForm.name,
+        distillery: editForm.distillery,
+        region: editForm.region,
+        age: editForm.age,
+        abv: editForm.abv,
+        description: editForm.description,
+      },
+    });
+    setShowEditForm(false);
+    setEditForm({
+      name: '',
+      distillery: '',
+      region: '',
+      age: undefined,
+      abv: undefined,
+      description: '',
+    });
+  };
+
+  const handleDeleteWhiskey = async () => {
+    if (!eventId || !whiskeyId || !whiskey) return;
+    if (confirm(`Delete "${whiskey.name}"? This action cannot be undone.`)) {
+      await removeWhiskey.mutateAsync({
+        eventId,
+        whiskeyId,
+      });
+      navigate(`/events/${eventId}`);
+    }
+  };
+
   if (isLoading) return <div className={styles.loading}>Loading...</div>;
   if (!whiskey) return <div className={styles.error}>Whiskey not found.</div>;
 
@@ -58,18 +133,34 @@ export default function WhiskeyDetailPage() {
       </div>
 
       <div className={styles.whiskeyHeader}>
-        <div>
-          <h1>{whiskey.name}</h1>
-          <p className={styles.meta}>
-            {whiskey.distillery} · {whiskey.region}
-            {whiskey.age ? ` · ${whiskey.age} years` : ''}
-            {whiskey.abv ? ` · ${whiskey.abv}% ABV` : ''}
-          </p>
-          {whiskey.description && (
-            <p className={styles.description}>{whiskey.description}</p>
-          )}
-        </div>
-        <div className={styles.overallRating}>
+         <div>
+           <h1>{whiskey.name}</h1>
+           <p className={styles.meta}>
+             {whiskey.distillery} · {whiskey.region}
+             {whiskey.age ? ` · ${whiskey.age} years` : ''}
+             {whiskey.abv ? ` · ${whiskey.abv}% ABV` : ''}
+           </p>
+           {whiskey.description && (
+             <p className={styles.description}>{whiskey.description}</p>
+           )}
+         </div>
+         <div className={styles.headerActions}>
+           {showEditForm && canDeleteWhiskey() && (
+             <button
+               className={styles.deleteWhiskeyBtn}
+               onClick={handleDeleteWhiskey}
+               disabled={removeWhiskey.isPending}
+             >
+               {removeWhiskey.isPending ? 'Deleting...' : 'Delete Whiskey'}
+             </button>
+           )}
+           {!showEditForm && canEditWhiskey() && (
+             <button className={styles.editBtn} onClick={startEditWhiskey}>
+               Edit Whiskey
+             </button>
+           )}
+         </div>
+         <div className={styles.overallRating}>
           <div className={styles.ratingNumber}>
             {whiskey.ratingCount > 0 ? whiskey.averageRating.toFixed(1) : '—'}
           </div>
@@ -78,10 +169,130 @@ export default function WhiskeyDetailPage() {
               ? `${whiskey.ratingCount} rating${whiskey.ratingCount !== 1 ? 's' : ''}`
               : 'No ratings yet'}
           </div>
-        </div>
-      </div>
+         </div>
+       </div>
 
-      {isAuthenticated && isTaster && (
+       {showEditForm && (
+         <form className={styles.form} onSubmit={handleWhiskeyEditSubmit}>
+           <h2>Edit Whiskey</h2>
+           <div className={styles.formRow}>
+             <div className={styles.formGroup}>
+               <label>Name *</label>
+               <input
+                 type="text"
+                 required
+                 value={editForm.name}
+                 onChange={(e) =>
+                   setEditForm((f) => ({ ...f, name: e.target.value }))
+                 }
+                 placeholder="e.g. Glenfiddich 12"
+               />
+             </div>
+             <div className={styles.formGroup}>
+               <label>Distillery *</label>
+               <input
+                 type="text"
+                 required
+                 value={editForm.distillery}
+                 onChange={(e) =>
+                   setEditForm((f) => ({
+                     ...f,
+                     distillery: e.target.value,
+                   }))
+                 }
+                 placeholder="e.g. Glenfiddich"
+               />
+             </div>
+           </div>
+           <div className={styles.formRow}>
+             <div className={styles.formGroup}>
+               <label>Region *</label>
+               <input
+                 type="text"
+                 required
+                 value={editForm.region}
+                 onChange={(e) =>
+                   setEditForm((f) => ({ ...f, region: e.target.value }))
+                 }
+                 placeholder="e.g. Speyside"
+               />
+             </div>
+             <div className={styles.formGroup}>
+               <label>Age (years)</label>
+               <input
+                 type="number"
+                 min="1"
+                 max="100"
+                 value={editForm.age ?? ''}
+                 onChange={(e) =>
+                   setEditForm((f) => ({
+                     ...f,
+                     age: e.target.value ? Number(e.target.value) : undefined,
+                   }))
+                 }
+               />
+             </div>
+             <div className={styles.formGroup}>
+               <label>ABV (%)</label>
+               <input
+                 type="number"
+                 min="1"
+                 max="100"
+                 step="0.1"
+                 value={editForm.abv ?? ''}
+                 onChange={(e) =>
+                   setEditForm((f) => ({
+                     ...f,
+                     abv: e.target.value ? Number(e.target.value) : undefined,
+                   }))
+                 }
+               />
+             </div>
+           </div>
+           <div className={styles.formGroup}>
+             <label>Description</label>
+             <textarea
+               value={editForm.description}
+               onChange={(e) =>
+                 setEditForm((f) => ({
+                   ...f,
+                   description: e.target.value,
+                 }))
+               }
+               rows={2}
+               placeholder="Tasting notes, style..."
+             />
+           </div>
+           <div className={styles.formActions}>
+             <button
+               type="button"
+               className={styles.cancelBtn}
+               onClick={() => {
+                 setShowEditForm(false);
+                 setEditForm({
+                   name: '',
+                   distillery: '',
+                   region: '',
+                   age: undefined,
+                   abv: undefined,
+                   description: '',
+                 });
+               }}
+             >
+               Cancel
+             </button>
+             <button
+               type="submit"
+               className={styles.submitBtn}
+               disabled={updateWhiskey.isPending}
+             >
+               {updateWhiskey.isPending ? 'Saving...' : 'Save Changes'}
+             </button>
+           </div>
+         </form>
+       )}
+
+       {isAuthenticated && isTaster && (
         <div className={styles.myRatingSection}>
           <h2>Your Rating</h2>
           {myRating && !editMode ? (

@@ -14,7 +14,7 @@ interface EventDocument {
   name: string;
   description: string;
   date: string;
-  location: string;
+  location?: string;
   createdBy: string;
   createdByUserId: string;
   createdAt: string;
@@ -47,11 +47,11 @@ async function createEvent(
     const principal = requireTaster(req);
     const body = (await req.json()) as Partial<EventDocument>;
 
-    if (!body.name || !body.date || !body.location) {
+    if (!body.name || !body.date) {
       return {
         status: 400,
         body: JSON.stringify({
-          error: 'name, date, and location are required',
+          error: 'name and date are required',
         }),
       };
     }
