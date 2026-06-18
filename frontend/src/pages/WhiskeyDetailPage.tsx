@@ -5,6 +5,7 @@ import {
   useUpdateWhiskey,
   useRemoveWhiskeyFromEvent,
 } from '@/hooks/useWhiskeys';
+import { useEvent } from '@/hooks/useEvents';
 import {
   useRatings,
   useUpsertRating,
@@ -23,6 +24,7 @@ export default function WhiskeyDetailPage() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { data: whiskey, isLoading } = useWhiskey(eventId!, whiskeyId!);
+  const { data: event } = useEvent(eventId!);
   const { data: ratings } = useRatings(eventId!, whiskeyId!);
   const { isAuthenticated, isTaster, user, isAdmin } = useAuth();
   const upsertRating = useUpsertRating();
@@ -131,7 +133,7 @@ export default function WhiskeyDetailPage() {
     <div className={styles.page}>
       <div className={styles.breadcrumb}>
         <Link to="/">{t('whiskeyDetail.breadcrumb')}</Link> /{' '}
-        <Link to={`/events/${eventId}`}>{t('whiskeyDetail.breadcrumb')}</Link> / {whiskey.name}
+        <Link to={`/events/${eventId}`}>{event?.name ?? eventId}</Link> / {whiskey.name}
       </div>
 
       <div className={styles.whiskeyHeader}>
