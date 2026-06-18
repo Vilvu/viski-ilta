@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAllWhiskeys } from '@/hooks/useWhiskeys';
 
 import styles from './RankingPage.module.css';
@@ -6,6 +7,7 @@ import styles from './RankingPage.module.css';
 const PAGE_SIZE = 50;
 
 export default function RankingPage() {
+  const { t } = useTranslation();
   const [pageIndex, setPageIndex] = useState(0);
   const {
     data: whiskeys,
@@ -28,19 +30,19 @@ export default function RankingPage() {
   };
 
   if (isLoading)
-    return <div className={styles.loading}>Loading rankings...</div>;
-  if (error) return <div className={styles.error}>Error loading rankings.</div>;
+     return <div className={styles.loading}>{t('common.loading')}</div>;
+   if (error) return <div className={styles.error}>{t('ranking.loadFailed')}</div>;
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Whiskey Rankings</h1>
-      <p className={styles.subtitle}>
-        All whiskeys ranked by average rating across all events.
-      </p>
+      <h1 className={styles.title}>{t('ranking.title')}</h1>
+       <p className={styles.subtitle}>
+         {t('ranking.subtitle')}
+       </p>
 
-      {whiskeys?.length === 0 ? (
-        <div className={styles.empty}>No whiskeys rated yet.</div>
-      ) : (
+       {whiskeys?.length === 0 ? (
+         <div className={styles.empty}>{t('ranking.emptyMessage')}</div>
+       ) : (
         <>
            <div className={styles.list}>
              {whiskeys?.map((whiskey, index) => (
@@ -56,41 +58,46 @@ export default function RankingPage() {
                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
                    </p>
                  </div>
-                 <div className={styles.ratings}>
-                   <div className={styles.ratingBadge}>
-                     <span className={styles.ratingLabel}>Avg</span>
-                     <span className={styles.ratingValue}>
-                       {whiskey.globalRatingCount > 0
-                         ? whiskey.globalAverageRating.toFixed(1)
-                         : '—'}
-                     </span>
-                   </div>
-                   <div className={styles.ratingCount}>
-                     ({whiskey.globalRatingCount}{' '}
-                     {whiskey.globalRatingCount === 1 ? 'rating' : 'ratings'})
-                   </div>
-                 </div>
+                  <div className={styles.ratings}>
+                    <div className={styles.ratingBadge}>
+                      <span className={styles.ratingLabel}>{t('ranking.avgBadge')}</span>
+                      <span className={styles.ratingValue}>
+                        {whiskey.globalRatingCount > 0
+                          ? whiskey.globalAverageRating.toFixed(1)
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.ratingCount}>
+                      ({t('ranking.ratingCount', {
+                        count: whiskey.globalRatingCount,
+                        defaultValue:
+                          whiskey.globalRatingCount === 1
+                            ? `${whiskey.globalRatingCount} ${t('ranking.ratingCount_one')}`
+                            : `${whiskey.globalRatingCount} ${t('ranking.ratingCount_other')}`,
+                      })})
+                    </div>
+                  </div>
                </div>
              ))}
            </div>
 
-          <div className={styles.pagination}>
-            <button
-              onClick={handlePrevPage}
-              disabled={pageIndex === 0}
-              className={styles.paginationBtn}
-            >
-              Previous
-            </button>
-            <span className={styles.pageInfo}>Page {pageIndex + 1}</span>
-            <button
-              onClick={handleNextPage}
-              disabled={!whiskeys || whiskeys.length < PAGE_SIZE}
-              className={styles.paginationBtn}
-            >
-              Next
-            </button>
-          </div>
+           <div className={styles.pagination}>
+             <button
+               onClick={handlePrevPage}
+               disabled={pageIndex === 0}
+               className={styles.paginationBtn}
+             >
+               {t('common.previous')}
+             </button>
+             <span className={styles.pageInfo}>{t('ranking.pageInfo', { page: pageIndex + 1 })}</span>
+             <button
+               onClick={handleNextPage}
+               disabled={!whiskeys || whiskeys.length < PAGE_SIZE}
+               className={styles.paginationBtn}
+             >
+               {t('common.next')}
+             </button>
+           </div>
         </>
       )}
     </div>

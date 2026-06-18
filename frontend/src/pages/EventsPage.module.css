@@ -92,6 +92,12 @@
   gap: 1rem;
 }
 
+@media (max-width: 767px) {
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}
+
 .formActions {
   display: flex;
   justify-content: flex-end;

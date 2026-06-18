@@ -1,0 +1,142 @@
+{
+  "app": {
+    "name": "Viski-ilta"
+  },
+  "nav": {
+    "events": "Tapahtumat",
+    "ranking": "Tilastot",
+    "signIn": "Kirjaudu sisään",
+    "signOut": "Kirjaudu ulos",
+    "editName": "Muokkaa näyttönimeä",
+    "editDisplayNameTitle": "Muokkaa näyttönimeä",
+    "openMenu": "Avaa valikko",
+    "language": "Kieli"
+  },
+  "common": {
+    "loading": "Ladataan...",
+    "cancel": "Peruuta",
+    "save": "Tallenna",
+    "saveChanges": "Tallenna muutokset",
+    "saving": "Tallennetaan...",
+    "creating": "Luodaan...",
+    "adding": "Lisätään...",
+    "deleting": "Poistetaan...",
+    "edit": "Muokkaa",
+    "remove": "Poista",
+    "previous": "Edellinen",
+    "next": "Seuraava",
+    "notFound": "Ei löytynyt"
+  },
+  "events": {
+    "title": "Tapahtumat",
+    "addEvent": "Lisää tapahtuma",
+    "newEvent": "Uusi tapahtuma",
+    "eventName": "Tapahtuman nimi",
+    "description": "Kuvaus",
+    "date": "Päivämäärä",
+    "location": "Sijainti",
+    "placeholders": {
+      "eventName": "Tapahtuman nimi",
+      "description": "Tapahtuman kuvaus",
+      "location": "Sijainti"
+    },
+    "createEvent": "Luo tapahtuma",
+    "emptyMessage": "Ei tapahtumia vielä. Luo sellainen aloittaaksesi!",
+    "emptyTasterMessage": "Tapahtumia ei löytynyt.",
+    "whiskeyCount_one": "{{count}} viski",
+    "whiskeyCount_other": "{{count}} viskiä",
+    "loadFailed": "Tapahtumien lataaminen epäonnistui"
+  },
+  "eventDetail": {
+    "breadcrumb": "Tapahtumat",
+    "addWhiskey": "Lisää viski",
+    "editEvent": "Muokkaa tapahtumaa",
+    "deleteEvent": "Poista tapahtuma",
+    "formLabels": {
+      "eventName": "Tapahtuman nimi",
+      "name": "Nimi",
+      "description": "Kuvaus",
+      "date": "Päivämäärä",
+      "location": "Sijainti",
+      "distillery": "Tislaamo",
+      "region": "Alue",
+      "age": "Ikä",
+      "abv": "ABV"
+    },
+    "placeholders": {
+      "eventName": "Tapahtuman nimi",
+      "whiskeyName": "Viskin nimi",
+      "distillery": "Tislaamo",
+      "region": "Alue",
+      "description": "Tapahtuman kuvaus",
+      "eventDescription": "Tapahtuman kuvaus",
+      "location": "Sijainti",
+      "tastingNotes": "Makumuistiot"
+    },
+    "whiskeyCount_one": "Viski ({{count}})",
+    "whiskeyCount_other": "Viskit ({{count}})",
+    "emptyMessage": "Yhtään viskiä ei ole vielä lisätty",
+    "ratingLabels": {
+      "you": "Sinä",
+      "avg": "Kesk."
+    },
+    "confirmDelete": "Oletko varma, että haluat poistaa tämän tapahtuman?",
+    "notFound": "Tapahtumaa ei löytynyt",
+    "loading": "Ladataan tapahtumaa...",
+    "submitEvent": "Tallenna tapahtuma"
+  },
+  "whiskeyDetail": {
+    "breadcrumb": "Tapahtumat",
+    "editWhiskey": "Muokkaa viskiä",
+    "deleteWhiskey": "Poista viski",
+    "yourRating": "Sinun arvostelusi",
+    "scoreLabel": "Pisteet (1–10)",
+    "notesLabel": "Huomautukset (valinnainen)",
+    "submitRating": "Lähetä arvostelu",
+    "updateRating": "Päivitä arvostelu",
+    "ratingCount_one": "{{count}} arvostelu",
+    "ratingCount_other": "{{count}} arvostelua",
+    "noRatings": "Ei arvosteluja vielä",
+    "noRatingsYet": "Ei arvosteluja vielä",
+    "allRatings": "Kaikki arvostelut",
+    "tasterRequired": "Vain tapahtuman maistelijat voivat arvostella viskejä.",
+    "signInPrompt": "Kirjaudu Googlella arvostellaksesi tätä viskiä",
+    "confirmRemoveRating": "Oletko varma, että haluat poistaa arvostelusi?",
+    "confirmDelete": "Oletko varma, että haluat poistaa tämän viskin?",
+    "years": "vuotta",
+    "abv": "% ABV",
+    "notFound": "Viskiä ei löytynyt"
+  },
+  "ranking": {
+    "title": "Tilastot",
+    "subtitle": "Kaikkien tapahtumien keskiarvo",
+    "emptyMessage": "Ei arvosteluja vielä",
+    "avgBadge": "Kesk.",
+    "ratingCount_one": "{{count}} arvostelu",
+    "ratingCount_other": "{{count}} arvostelua",
+    "pageInfo": "Sivu {{page}}",
+    "loadFailed": "Tilastojen lataaminen epäonnistui"
+  },
+  "modals": {
+    "chooseDisplayName": "Valitse näyttönimi",
+    "updateDisplayName": "Päivitä näyttönimi",
+    "descriptions": {
+      "choose": "Tätä nimeä näytetään muille tapahtuman järjestäjille.",
+      "update": "Tätä nimeä näytetään muille tapahtuman järjestäjille."
+    },
+    "displayName": "Näyttönimi",
+    "displayNamePlaceholder": "Sinun näyttönimesi",
+    "validation": {
+      "empty": "Näyttönimi ei voi olla tyhjä",
+      "tooLong": "Näyttönimi ei saa ylittää 50 merkkiä",
+      "setFailed": "Näyttönimen asettaminen epäonnistui",
+      "updateFailed": "Näyttönimen päivittäminen epäonnistui"
+    },
+    "saveDisplayName": "Tallenna näyttönimi"
+  },
+  "notFound": {
+    "heading": "404 — Sivua ei löytynyt",
+    "evaporated": "Tämä viski näyttää haihtuneen.",
+    "backToEvents": "Takaisin tapahtumiin"
+  }
+}

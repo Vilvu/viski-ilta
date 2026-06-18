@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Layout from '@/components/Layout';
 import EventsPage from '@/pages/EventsPage';
 import EventDetailPage from '@/pages/EventDetailPage';
@@ -8,6 +10,13 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import TasterRoute from '@/components/ProtectedRoute';
 
 function App() {
+  const { t, i18n } = useTranslation();
+
+  useEffect(() => {
+    document.title = t('app.name');
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language, t]);
+
   return (
     <Routes>
       <Route path="/" element={<Layout />}>

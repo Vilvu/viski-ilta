@@ -1,15 +1,18 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './NotFoundPage.module.css';
 
 export default function NotFoundPage() {
+  const { t } = useTranslation();
+
   return (
     <div className={styles.page}>
       <div className={styles.content}>
         <div className={styles.emoji}>🥃</div>
-        <h1>404 — Page Not Found</h1>
-        <p>This dram seems to have evaporated.</p>
+        <h1>{t('notFound.heading')}</h1>
+        <p>{t('notFound.evaporated')}</p>
         <Link to="/" className={styles.homeLink}>
-          Back to Events
+          {t('notFound.backToEvents')}
         </Link>
       </div>
     </div>
