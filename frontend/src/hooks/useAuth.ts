@@ -20,6 +20,30 @@ interface SwaAuthResponse {
   } | null;
 }
 
+let authCachePromise: Promise<SwaAuthResponse> | null = null;
+let isFetching = false;
+
+function fetchAuthMe(force = false): Promise<SwaAuthResponse> {
+  if (!authCachePromise || (force && !isFetching)) {
+    isFetching = true;
+    authCachePromise = fetch('/.auth/me')
+      .then((res) => {
+        isFetching = false;
+        if (!res.ok) {
+          authCachePromise = null;
+          throw new Error('Network response was not ok');
+        }
+        return res.json();
+      })
+      .catch((err) => {
+        isFetching = false;
+        authCachePromise = null;
+        throw err;
+      });
+  }
+  return authCachePromise;
+}
+
 export function useAuth(): AuthState {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -34,8 +58,8 @@ export function useAuth(): AuthState {
 
     async function fetchAuthState(retries = 3, delayMs = 100) {
       try {
-        const response = await fetch('/.auth/me');
-        const data: SwaAuthResponse = await response.json();
+        const isRetry = retries < 3;
+        const data = await fetchAuthMe(isRetry);
 
         if (cancelled) return;
 
