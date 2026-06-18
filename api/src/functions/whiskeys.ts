@@ -19,8 +19,8 @@ import { v4 as uuidv4 } from 'uuid';
 interface WhiskeyDocument {
   id: string;
   name: string;
-  distillery: string;
-  region: string;
+  distillery?: string;
+  region?: string;
   age?: number;
   abv?: number;
   description?: string;
@@ -49,8 +49,8 @@ interface JoinedWhiskey {
   id: string;
   eventId: string;
   name: string;
-  distillery: string;
-  region: string;
+  distillery?: string;
+  region?: string;
   age?: number;
   abv?: number;
   description?: string;
@@ -71,8 +71,8 @@ interface JoinedWhiskey {
 async function insertCatalogWhiskey(
   body: {
     name: string;
-    distillery: string;
-    region: string;
+    distillery?: string;
+    region?: string;
     age?: number;
     abv?: number;
     description?: string;
@@ -146,11 +146,11 @@ async function createCatalogWhiskey(
     const principal = requireTaster(req);
     const body = (await req.json()) as Partial<WhiskeyDocument>;
 
-    if (!body.name || !body.distillery || !body.region) {
+    if (!body.name) {
       return {
         status: 400,
         body: JSON.stringify({
-          error: 'name, distillery, and region are required',
+          error: 'name is required',
         }),
       };
     }
@@ -415,11 +415,11 @@ async function addWhiskeyToEvent(
 
     // If no whiskeyId, create a new catalog whiskey using the shared helper
     if (!whiskeyId) {
-      if (!body.name || !body.distillery || !body.region) {
+      if (!body.name) {
         return {
           status: 400,
           body: JSON.stringify({
-            error: 'name, distillery, and region are required',
+            error: 'name is required',
           }),
         };
       }

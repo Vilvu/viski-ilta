@@ -4,8 +4,8 @@ import type { CatalogWhiskey, EventWhiskey, ApiResponse } from '@/types';
 // Input types for create/update operations
 export interface CreateCatalogWhiskeyInput {
   name: string;
-  distillery: string;
-  region: string;
+  distillery?: string;
+  region?: string;
   age?: number;
   abv?: number;
   description?: string;

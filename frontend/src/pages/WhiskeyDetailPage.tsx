@@ -77,8 +77,8 @@ export default function WhiskeyDetailPage() {
     if (!whiskey) return;
     setEditForm({
       name: whiskey.name,
-      distillery: whiskey.distillery,
-      region: whiskey.region,
+      distillery: whiskey.distillery || '',
+      region: whiskey.region || '',
       age: whiskey.age,
       abv: whiskey.abv,
       description: whiskey.description,
@@ -93,8 +93,8 @@ export default function WhiskeyDetailPage() {
       whiskeyId,
       input: {
         name: editForm.name,
-        distillery: editForm.distillery,
-        region: editForm.region,
+        distillery: editForm.distillery || undefined,
+        region: editForm.region || undefined,
         age: editForm.age,
         abv: editForm.abv,
         description: editForm.description,
@@ -136,9 +136,14 @@ export default function WhiskeyDetailPage() {
          <div>
            <h1>{whiskey.name}</h1>
            <p className={styles.meta}>
-             {whiskey.distillery} · {whiskey.region}
-             {whiskey.age ? ` · ${whiskey.age} years` : ''}
-             {whiskey.abv ? ` · ${whiskey.abv}% ABV` : ''}
+             {[
+               whiskey.distillery,
+               whiskey.region,
+               whiskey.age ? `${whiskey.age} years` : null,
+               whiskey.abv ? `${whiskey.abv}% ABV` : null,
+             ]
+               .filter(Boolean)
+               .join(' · ')}
            </p>
            {whiskey.description && (
              <p className={styles.description}>{whiskey.description}</p>
@@ -189,10 +194,9 @@ export default function WhiskeyDetailPage() {
                />
              </div>
              <div className={styles.formGroup}>
-               <label>Distillery *</label>
+               <label>Distillery</label>
                <input
                  type="text"
-                 required
                  value={editForm.distillery}
                  onChange={(e) =>
                    setEditForm((f) => ({
@@ -206,10 +210,9 @@ export default function WhiskeyDetailPage() {
            </div>
            <div className={styles.formRow}>
              <div className={styles.formGroup}>
-               <label>Region *</label>
+               <label>Region</label>
                <input
                  type="text"
-                 required
                  value={editForm.region}
                  onChange={(e) =>
                    setEditForm((f) => ({ ...f, region: e.target.value }))

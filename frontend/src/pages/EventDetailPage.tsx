@@ -41,7 +41,12 @@ export default function EventDetailPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addWhiskey.mutateAsync({ eventId: eventId!, input: form });
+    const submitData = {
+      ...form,
+      distillery: form.distillery || undefined,
+      region: form.region || undefined,
+    };
+    await addWhiskey.mutateAsync({ eventId: eventId!, input: submitData });
     setForm({
       name: '',
       distillery: '',
@@ -164,10 +169,9 @@ export default function EventDetailPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Distillery *</label>
+              <label>Distillery</label>
               <input
                 type="text"
-                required
                 value={form.distillery}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, distillery: e.target.value }))
@@ -178,10 +182,9 @@ export default function EventDetailPage() {
           </div>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>Region *</label>
+              <label>Region</label>
               <input
                 type="text"
-                required
                 value={form.region}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, region: e.target.value }))
@@ -336,16 +339,21 @@ export default function EventDetailPage() {
                   to={`/events/${eventId}/whiskeys/${whiskey.id}`}
                   className={styles.whiskeyLink}
                 >
-                  <div className={styles.whiskeyInfo}>
-                    <h3>{whiskey.name}</h3>
-                    <p className={styles.whiskeyMeta}>
-                      {whiskey.distillery} · {whiskey.region}
-                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
-                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
-                    </p>
-                  </div>
-                  <div className={styles.ratings}>
-                    {whiskey.userRating !== undefined && (
+                   <div className={styles.whiskeyInfo}>
+                     <h3>{whiskey.name}</h3>
+                     <p className={styles.whiskeyMeta}>
+                       {[
+                         whiskey.distillery,
+                         whiskey.region,
+                         whiskey.age ? `${whiskey.age}yr` : null,
+                         whiskey.abv ? `${whiskey.abv}%` : null,
+                       ]
+                         .filter(Boolean)
+                         .join(' · ')}
+                     </p>
+                   </div>
+                   <div className={styles.ratings}>
+                     {whiskey.userRating !== undefined && (
                       <div
                         className={styles.ratingBadge + ' ' + styles.userRating}
                       >
@@ -367,16 +375,21 @@ export default function EventDetailPage() {
                   </div>
                 </Link>
               ) : (
-                <div className={styles.whiskeyLink}>
-                  <div className={styles.whiskeyInfo}>
-                    <h3>{whiskey.name}</h3>
-                    <p className={styles.whiskeyMeta}>
-                      {whiskey.distillery} · {whiskey.region}
-                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
-                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
-                    </p>
-                  </div>
-                  <div className={styles.ratings}>
+                 <div className={styles.whiskeyLink}>
+                   <div className={styles.whiskeyInfo}>
+                     <h3>{whiskey.name}</h3>
+                     <p className={styles.whiskeyMeta}>
+                       {[
+                         whiskey.distillery,
+                         whiskey.region,
+                         whiskey.age ? `${whiskey.age}yr` : null,
+                         whiskey.abv ? `${whiskey.abv}%` : null,
+                       ]
+                         .filter(Boolean)
+                         .join(' · ')}
+                     </p>
+                   </div>
+                   <div className={styles.ratings}>
                     <div className={styles.ratingBadge}>
                       <span className={styles.ratingLabel}>Avg</span>
                       <span className={styles.ratingValue}>

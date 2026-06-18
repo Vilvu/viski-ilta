@@ -22,8 +22,8 @@ export interface Event {
 export interface CatalogWhiskey {
   id: string;
   name: string;
-  distillery: string;
-  region: string;
+  distillery?: string;
+  region?: string;
   age?: number;
   abv?: number;
   description?: string;
@@ -40,8 +40,8 @@ export interface EventWhiskey {
   id: string;
   eventId: string;
   name: string;
-  distillery: string;
-  region: string;
+  distillery?: string;
+  region?: string;
   age?: number;
   abv?: number;
   description?: string;
