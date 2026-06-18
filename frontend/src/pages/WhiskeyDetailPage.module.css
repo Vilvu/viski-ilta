@@ -51,6 +51,27 @@
   flex-shrink: 0;
 }
 
+@media (max-width: 600px) {
+  .whiskeyHeader {
+    justify-content: flex-start;
+  }
+
+  .overallRating {
+    text-align: center;
+    align-self: flex-start;
+    padding: 0.5rem 1rem;
+  }
+
+  .overallRating .ratingNumber {
+    font-size: 1.75rem;
+  }
+
+  .overallRating .ratingLabel {
+    font-size: 0.75rem;
+  }
+}
+
+
 .ratingNumber {
   font-size: 2.5rem;
   font-weight: 700;
