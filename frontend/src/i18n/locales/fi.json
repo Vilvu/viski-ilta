@@ -102,7 +102,7 @@
     "noRatingsYet": "Ei arvosteluja vielä",
     "allRatings": "Kaikki arvostelut",
     "tasterRequired": "Vain maistelijat voivat arvostella viskejä.",
-    "signInPrompt": "Kirjaudu Googlella arvostellaksesi tätä viskiä",
+    "signInPrompt": "Kirjaudu Microsoft-tunnuksella arvostellaksesi tätä viskiä",
     "confirmRemoveRating": "Oletko varma, että haluat poistaa arvostelusi?",
     "confirmDelete": "Oletko varma, että haluat poistaa tämän viskin?",
     "years": "vuotta",
