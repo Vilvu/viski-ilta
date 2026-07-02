@@ -13,18 +13,18 @@ WhiskyApp follows a **serverless, JAMstack-inspired architecture** on Azure, opt
 │  ┌──────────────────────────────────┐                           │
 │  │   Azure Static Web Apps          │                           │
 │  │  ┌────────────────────────────┐  │                           │
-│  │  │  React SPA - Frontend     │  │                           │
-│  │  │  - TypeScript + Vite      │  │                           │
-│  │  │  - Built-in Auth          │  │                           │
+│  │  │  React SPA - Frontend      │  │                           │
+│  │  │  - TypeScript + Vite       │  │                           │
+│  │  │  - Built-in Auth           │  │                           │
 │  │  └────────────┬───────────────┘  │                           │
 │  │               │                  │                           │
 │  │  ┌────────────▼───────────────┐  │                           │
 │  │  │  Managed Azure Functions   │  │                           │
-│  │  │  - API Routes /api/*      │  │                           │
-│  │  │  - Node.js + TypeScript   │  │                           │
+│  │  │  - API Routes /api/*       │  │                           │
+│  │  │  - Node.js + TypeScript    │  │                           │
 │  │  └────────────┬───────────────┘  │                           │
 │  └───────────────│──────────────────┘                           │
-│                  │                                               │
+│                  │                                              │
 │  ┌───────────────▼──────────────────┐                           │
 │  │   Azure Cosmos DB                │                           │
 │  │   - NoSQL Document Store         │                           │
@@ -160,9 +160,9 @@ sequenceDiagram
 ### 2.6 Technology Stack Summary
 
 ```
-160: ┌─────────────────────────────────────────────┐
+160: ┌──────────────────────────────────────────────┐
 161: │              Technology Stack                │
-162: ├─────────────────────────────────────────────┤
+162: ├──────────────────────────────────────────────┤
 163: │  Frontend                                    │
 164: │  ├── React 18+                               │
 165: │  ├── TypeScript - strict                     │
@@ -170,26 +170,26 @@ sequenceDiagram
 167: │  ├── React Router v6                         │
 168: │  ├── TanStack Query                          │
 169: │  └── CSS Modules or Tailwind CSS             │
-170: ├─────────────────────────────────────────────┤
+170: ├──────────────────────────────────────────────┤
 171: │  Backend                                     │
 172: │  ├── Azure Functions v4                      │
 173: │  ├── Node.js 20 LTS                          │
 174: │  ├── TypeScript                              │
 175: │  └── @azure/cosmos SDK                       │
-176: ├─────────────────────────────────────────────┤
+176: ├──────────────────────────────────────────────┤
 177: │  Data                                        │
 178: │  ├── Azure Cosmos DB - NoSQL API             │
 179: │  └── Serverless capacity mode                │
-180: ├─────────────────────────────────────────────┤
+180: ├──────────────────────────────────────────────┤
 181: │  Auth                                        │
 182: │  ├── Azure SWA built-in auth                 │
 183: │  └── Microsoft Entra ID provider             │
-184: ├─────────────────────────────────────────────┤
+184: ├──────────────────────────────────────────────┤
 185: │  Infrastructure                              │
 186: │  ├── Azure Static Web Apps - Free tier       │
 187: │  ├── GitHub Actions - CI/CD                  │
 188: │  └── Azure Cosmos DB - Serverless            │
-189: └─────────────────────────────────────────────┘
+189: └──────────────────────────────────────────────┘
 ```
 
 ---
@@ -237,12 +237,16 @@ api/
 │   │   │                    GET/PATCH/DELETE /api/whiskeys/:whiskeyId
 │   │   │                    GET/POST /api/events/:eventId/whiskeys (event links)
 │   │   │                    GET/DELETE /api/events/:eventId/whiskeys/:whiskeyId
-│   │   └── ratings.ts     — GET /api/events/:eventId/whiskeys/:whiskeyId/ratings
-│   │                        PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me
+│   │   ├── ratings.ts     — GET /api/events/:eventId/whiskeys/:whiskeyId/ratings
+│   │   │                    PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me
+│   │   └── users.ts       — GET/PUT /api/users/me (profile: displayName, email, role)
+│   │                        GET /api/users (admin-only, list all)
+│   │                        PUT /api/users/:id/role (admin-only, assign role)
 │   └── lib/
 │       ├── cosmos.ts      — getContainer() — routes to mock or real Cosmos DB
-│       ├── cosmos.mock.ts — MockContainer + seed data
-│       ├── auth.ts        — getClientPrincipal, requireTaster, isAdmin, getUserDisplayName
+│       ├── cosmos.mock.ts — MockContainer + seed data (incl. a seeded mock admin user)
+│       ├── auth.ts        — getClientPrincipal, ensureUser, getUserRole (DB-backed),
+│       │                    requireTaster/requireAdmin (async, DB role), getUserDisplayName
 │       ├── response.ts    — ok, created, noContent, notFound, handleError helpers
 │       └── aggregates.ts  — recomputeEventAggregate, recomputeGlobalAggregate
 ├── host.json

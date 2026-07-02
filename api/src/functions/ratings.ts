@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireTaster, getUserDisplayName } from '../lib/auth';
+import { requireTaster } from '../lib/auth';
 import { ok, noContent, notFound, handleError } from '../lib/response';
 import {
   recomputeEventAggregate,
@@ -34,7 +34,7 @@ async function getRatings(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    requireTaster(req);
+    await requireTaster(req);
     const { eventId, whiskeyId } = req.params;
     const container = getContainer('ratings');
 
@@ -66,7 +66,7 @@ async function upsertMyRating(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal, profile } = await requireTaster(req);
     const { eventId, whiskeyId } = req.params;
     const body = (await req.json()) as {
       score: number;
@@ -82,7 +82,6 @@ async function upsertMyRating(
 
     const ratingsContainer = getContainer('ratings');
     const now = new Date().toISOString();
-    const displayName = (await getUserDisplayName(principal)) || principal.userId;
 
     // Check for existing rating with this (eventId, whiskeyId, userId)
     const { resources: existing } = await ratingsContainer.items
@@ -103,7 +102,7 @@ async function upsertMyRating(
       const existingRating = existing[0] as RatingDocument;
       rating = {
         ...existingRating,
-        userName: displayName,
+        userName: profile.displayName,
         score: body.score,
         notes: body.notes,
         updatedAt: now,
@@ -116,7 +115,7 @@ async function upsertMyRating(
         eventId,
         whiskeyId,
         userId: principal.userId,
-        userName: displayName,
+        userName: profile.displayName,
         score: body.score,
         notes: body.notes,
         createdAt: now,
@@ -145,7 +144,7 @@ async function deleteMyRating(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal } = await requireTaster(req);
     const { eventId, whiskeyId } = req.params;
 
     const ratingsContainer = getContainer('ratings');
@@ -189,7 +188,7 @@ async function getWhiskeyRatingsGlobally(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    requireTaster(req);
+    await requireTaster(req);
     const { whiskeyId } = req.params;
     const container = getContainer('ratings');
 

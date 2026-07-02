@@ -263,17 +263,17 @@ export default function WhiskeyDetailPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Description</label>
-            <textarea
-              value={editForm.description}
-              onChange={(e) =>
-                setEditForm((f) => ({
-                  ...f,
-                  description: e.target.value,
-                }))
-              }
-              rows={2}
-              placeholder="Tasting notes, style..."
-            />
+              <textarea
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm((f) => ({
+                    ...f,
+                    description: e.target.value,
+                  }))
+                }
+                rows={2}
+                placeholder={t('eventDetail.placeholders.tastingNotes')}
+              />
           </div>
           <div className={styles.formActions}>
             <button
@@ -356,7 +356,7 @@ export default function WhiskeyDetailPage() {
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Tasting notes, impressions..."
+                  placeholder={t('whiskeyDetail.tastingNotesPlaceholder')}
                   rows={3}
                 />
               </div>
@@ -395,7 +395,7 @@ export default function WhiskeyDetailPage() {
 
       {!isAuthenticated && (
         <div className={styles.signInPrompt}>
-          <a href="/.auth/login/google" className={styles.signInBtn}>
+          <a href="/.auth/login/aad" className={styles.signInBtn}>
             {t('whiskeyDetail.signInPrompt')}
           </a>
         </div>

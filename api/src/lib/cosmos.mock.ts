@@ -162,6 +162,21 @@ function initializeSeedData() {
   const whiskeysContainer = mockStorage.get('whiskeys')!;
   const eventWhiskeysContainer = mockStorage.get('eventWhiskeys')!;
   const ratingsContainer = mockStorage.get('ratings')!;
+  const usersContainer = mockStorage.get('users')!;
+
+  // Seed a mock admin user for local dev so the admin User Management UI is
+  // testable without manual DB promotion. userId 'admin' matches the
+  // createdByUserId used throughout the other seed documents below.
+  const adminUser = {
+    id: 'admin',
+    displayName: 'Admin',
+    email: 'admin@example.com',
+    role: 'admin',
+    usernameConfirmed: true,
+    createdAt: '2026-05-01T09:00:00Z',
+    updatedAt: '2026-05-01T09:00:00Z',
+  };
+  usersContainer.set(adminUser.id, adminUser);
 
   // Events
   const event1Id = uuidv4();

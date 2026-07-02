@@ -5,6 +5,7 @@
   "nav": {
     "events": "Tapahtumat",
     "ranking": "Tilastot",
+    "userManagement": "Käyttäjähallinta",
     "signIn": "Kirjaudu sisään",
     "signOut": "Kirjaudu ulos",
     "editName": "Muokkaa näyttönimeä",
@@ -71,7 +72,7 @@
       "description": "Tapahtuman kuvaus",
       "eventDescription": "Tapahtuman kuvaus",
       "location": "Sijainti",
-      "tastingNotes": "Makumuistiot"
+      "tastingNotes": "Makumuistiinpanot"
     },
     "whiskeyCount_one": "Viski ({{count}})",
     "whiskeyCount_other": "Viskit ({{count}})",
@@ -92,6 +93,7 @@
     "yourRating": "Oma arvostelu",
     "scoreLabel": "Pisteet (1–10)",
     "notesLabel": "Huomautukset (valinnainen)",
+    "tastingNotesPlaceholder": "Makumuistiinpanot, vaikutelmat...",
     "submitRating": "Lähetä arvostelu",
     "updateRating": "Päivitä arvostelu",
     "ratingCount_one": "{{count}} arvostelu",
@@ -99,8 +101,8 @@
     "noRatings": "Ei arvosteluja vielä",
     "noRatingsYet": "Ei arvosteluja vielä",
     "allRatings": "Kaikki arvostelut",
-    "tasterRequired": "Vain tapahtuman maistelijat voivat arvostella viskejä.",
-    "signInPrompt": "Kirjaudu Googlella arvostellaksesi tätä viskiä",
+    "tasterRequired": "Vain maistelijat voivat arvostella viskejä.",
+    "signInPrompt": "Kirjaudu Microsoft-tunnuksella arvostellaksesi tätä viskiä",
     "confirmRemoveRating": "Oletko varma, että haluat poistaa arvostelusi?",
     "confirmDelete": "Oletko varma, että haluat poistaa tämän viskin?",
     "years": "vuotta",
@@ -138,5 +140,23 @@
     "heading": "404 — Sivua ei löytynyt",
     "evaporated": "Tämä viski näyttää haihtuneen.",
     "backToEvents": "Takaisin tapahtumiin"
+  },
+  "userManagement": {
+    "title": "Käyttäjähallinta",
+    "emptyMessage": "Käyttäjiä ei löytynyt.",
+    "loadFailed": "Käyttäjien lataaminen epäonnistui",
+    "updateFailed": "Roolin päivittäminen epäonnistui",
+    "cannotChangeSelf": "Et voi muuttaa omaa rooliasi",
+    "confirmRoleChange": "Vaihdetaanko käyttäjän rooliksi {{role}}?",
+    "columns": {
+      "email": "Sähköposti",
+      "displayName": "Näyttönimi",
+      "role": "Rooli"
+    },
+    "roles": {
+      "anonymous": "Anonyymi",
+      "taster": "Maistelija",
+      "admin": "Ylläpitäjä"
+    }
   }
 }

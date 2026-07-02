@@ -13,7 +13,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      window.location.href = '/.auth/login/google';
+      window.location.href = '/.auth/login/aad';
     }
     return Promise.reject(error);
   },

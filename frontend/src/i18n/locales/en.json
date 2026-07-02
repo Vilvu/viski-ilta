@@ -5,6 +5,7 @@
   "nav": {
     "events": "Events",
     "ranking": "Ranking",
+    "userManagement": "User Management",
     "signIn": "Sign in",
     "signOut": "Sign out",
     "editName": "Edit display name",
@@ -92,6 +93,7 @@
     "yourRating": "Your Rating",
     "scoreLabel": "Score (1–10)",
     "notesLabel": "Notes (optional)",
+    "tastingNotesPlaceholder": "Tasting notes, impressions...",
     "submitRating": "Submit rating",
     "updateRating": "Update rating",
     "ratingCount_one": "{{count}} rating",
@@ -100,7 +102,7 @@
     "noRatingsYet": "No ratings yet",
     "allRatings": "All Ratings",
     "tasterRequired": "Only event tasters can rate whiskeys.",
-    "signInPrompt": "Sign in with Google to rate this whiskey",
+    "signInPrompt": "Sign in with Microsoft to rate this whiskey",
     "confirmRemoveRating": "Are you sure you want to remove your rating?",
     "confirmDelete": "Are you sure you want to delete this whiskey?",
     "years": "years",
@@ -138,5 +140,23 @@
     "heading": "404 — Page Not Found",
     "evaporated": "This dram seems to have evaporated.",
     "backToEvents": "Back to Events"
+  },
+  "userManagement": {
+    "title": "User Management",
+    "emptyMessage": "No users found.",
+    "loadFailed": "Failed to load users",
+    "updateFailed": "Failed to update role",
+    "cannotChangeSelf": "You cannot change your own role",
+    "confirmRoleChange": "Change this user's role to {{role}}?",
+    "columns": {
+      "email": "Email",
+      "displayName": "Display Name",
+      "role": "Role"
+    },
+    "roles": {
+      "anonymous": "Anonymous",
+      "taster": "Taster",
+      "admin": "Admin"
+    }
   }
 }

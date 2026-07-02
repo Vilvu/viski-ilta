@@ -6,11 +6,8 @@ Navigation hub for the WhiskyApp project documentation and planning artifacts.
 
 | Document | Description |
 |----------|-------------|
-| [prd.md](prd.md) | Product Requirements Document — goals, user stories, acceptance criteria |
 | [architecture.md](architecture.md) | System Architecture — tech stack, component design, Azure resources |
-| [technical.md](technical.md) | Technical Specification — data models, API specs, auth flows, schemas |
 | [deployment.md](deployment.md) | Deployment Guide — Azure setup, CI/CD, local dev, troubleshooting |
-| [TODO.md](TODO.md) | Development Task List — phased implementation plan |
 
 ## Project Summary
 

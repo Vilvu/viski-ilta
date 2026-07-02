@@ -283,38 +283,66 @@ sequenceDiagram
 
 ## 4. Admin Role Assignment
 
-Azure Static Web Apps uses a role-based access control system. All authenticated users automatically receive the `authenticated` role. The `admin` role must be explicitly assigned.
+> **Roles are app-managed, not SWA-managed.** Azure Static Web Apps + Entra ID
+> handle **authentication only**. Authorization (`anonymous` / `taster` /
+> `admin`) is determined by the app itself, from the `role` field on each
+> user's document in the Cosmos `users` container. SWA's built-in
+> `userRoles` / Role management portal blade is **not used** for `taster` or
+> `admin` — only Microsoft sign-in is required.
 
-### 4.1 Invite Users as Admin
+### 4.1 How Roles Work
 
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to your Static Web App resource (`swa-whiskyapp`)
-3. In the left menu, click **Settings** → **Role management**
-4. Click **Invite**
-5. Fill in:
-   - **Identity provider**: Microsoft
-   - **Invitee email**: The email address of the admin user (Entra ID UPN)
-   - **Role**: `admin`
-   - **Invitation expiry**: Set an appropriate expiry (e.g., 8 hours)
-6. Click **Generate invitation link**
-7. Send the invitation link to the user — they must click it while signed in with their Microsoft account to accept the role
+- On first sign-in, the API automatically creates a `users` document for the
+  signed-in user with `role: 'anonymous'`, capturing their `displayName` and
+  `email` from Entra ID claims. The user appears in the admin User Management
+  page (`/admin/users`) immediately after their first login — no invitation
+  needed.
+- An existing `admin` promotes users to `taster` or `admin` (or revokes back
+  to `anonymous`) from the in-app **User Management** page. Role changes take
+  effect on the user's next authenticated request (typically their next page
+  load or refresh).
 
-### 4.2 Role Hierarchy
+### 4.2 Bootstrapping the First Admin
+
+> **Important**: This is a **required, ordered deploy step** and must be completed before the application can be used administratively. Skipping this step will leave the application without any administrators.
+
+Since there is no in-app way to grant the very first `admin` (every promotion
+requires an existing admin), the first admin must be set manually per
+environment:
+
+1. Have the intended first admin sign in to the app once via
+   `/.auth/login/aad`. This auto-creates their `users` document with
+   `role: 'anonymous'`.
+2. In the Azure Portal, open the Cosmos DB account → **Data Explorer** →
+   the `whiskyapp` database → the `users` container.
+3. Find the document whose `id` matches that user's SWA `userId` (visible via
+   `/.auth/me` while signed in, or by matching on the `email` field).
+4. Edit the document and set `"role": "admin"`, then save.
+5. The user should sign out and back in (or simply refresh) to pick up the
+   new role. From then on, they can manage all other users' roles from
+   `/admin/users`.
+
+For local development, the Cosmos mock (`USE_COSMOS_MOCK=true`) seeds a
+built-in mock admin user (`id: 'admin'`) automatically — no manual step is
+needed locally.
+
+### 4.3 Role Hierarchy
 
 | Role | Access Level | How Assigned |
 |------|-------------|--------------|
-| `anonymous` | Read-only — browse events and whiskeys | Automatic for all visitors |
-| `authenticated` | Rate whiskeys — create, update, delete own ratings | Automatic upon Microsoft sign-in |
-| `admin` | Full access — manage events and whiskeys | Manual invitation via Azure Portal |
+| `anonymous` | Read-only — browse events and whiskeys | Automatic for every user on first sign-in |
+| `taster` | Rate whiskeys; create/manage own events and whiskeys | Assigned by an admin via `/admin/users` |
+| `admin` | Full access — manage events/whiskeys and all users' roles | Assigned by an admin via `/admin/users`; first admin requires manual DB seed (see 4.2) |
 
-### 4.3 Verify Role Assignment
+### 4.4 Verify Role Assignment
 
-After a user accepts the admin invitation, they can verify their roles by visiting:
+A signed-in user can check their current app role via:
 ```
-https://<your-swa-domain>/.auth/me
+GET https://<your-swa-domain>/api/users/me
 ```
 
-The response will include `userRoles` containing both `authenticated` and `admin`.
+The response body's `data.role` field reflects the persisted DB role
+(`anonymous`, `taster`, or `admin`).
 
 ---
 
@@ -503,15 +531,15 @@ The SWA CLI provides a mock login page at `http://localhost:4280/.auth/login/aad
 
 #### Option 2: Mock the Auth Header
 
-For API-only testing, you can send a mock `x-ms-client-principal` header. Create a base64-encoded JSON payload:
+For API-only testing, you can send a mock `x-ms-client-principal` header. Create a base64-encoded JSON payload. Note that `userRoles` here only needs to establish that the user is authenticated — `taster`/`admin` authorization is looked up from the `users` document in Cosmos (or the mock), not from this header. To test as an admin locally, use `userId: "admin"`, which matches the seeded mock admin user (see 4.2):
 
 ```javascript
-// Example: Create a mock admin user header
+// Example: Create a mock signed-in user header (role comes from the DB, not userRoles)
 const principal = {
-  userId: "test-user-123",
-  userRoles: ["anonymous", "authenticated", "admin"],
+  userId: "admin", // matches the seeded mock admin user's users/{id} doc
+  userRoles: ["anonymous", "authenticated"],
   claims: [{ typ: "name", val: "Test Admin" }],
-  identityProvider: "google",
+  identityProvider: "aad",
   userDetails: "admin@example.com"
 };
 const header = Buffer.from(JSON.stringify(principal)).toString('base64');
@@ -878,7 +906,7 @@ Use this checklist to track your deployment progress:
 - [ ] SWA application settings configured (Cosmos DB credentials)
 - [ ] GitHub secrets configured
 - [ ] First deployment triggered (push to main)
-- [ ] Admin role assigned to at least one user
+- [ ] First admin bootstrapped manually in Cosmos DB (see Section 4.2)
 - [ ] Smoke test: browse events, sign in, rate a whiskey
 - [ ] Application Insights enabled (optional)
 - [ ] Custom domain configured (optional)

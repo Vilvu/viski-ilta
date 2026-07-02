@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireTaster, isAdmin, getUserDisplayName } from '../lib/auth';
+import { requireTaster, isAdmin } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,7 +44,7 @@ async function createEvent(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal, profile } = await requireTaster(req);
     const body = (await req.json()) as Partial<EventDocument>;
 
     if (!body.name || !body.date) {
@@ -57,14 +57,13 @@ async function createEvent(
     }
 
     const now = new Date().toISOString();
-    const displayName = await getUserDisplayName(principal);
     const event: EventDocument = {
       id: uuidv4(),
       name: body.name,
       description: body.description ?? '',
       date: body.date,
       location: body.location,
-      createdBy: displayName,
+      createdBy: profile.displayName,
       createdByUserId: principal.userId,
       createdAt: now,
       updatedAt: now,
@@ -101,13 +100,16 @@ async function updateEvent(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal } = await requireTaster(req);
     const eventId = req.params.eventId;
     const container = getContainer('events');
     const { resource } = await container.item(eventId, eventId).read();
     if (!resource) return notFound('Event not found');
 
-    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+    if (
+      !(await isAdmin(principal)) &&
+      resource.createdByUserId !== principal.userId
+    ) {
       return {
         status: 403,
         body: JSON.stringify({ error: 'Only the creator or admin can update this event' }),
@@ -134,13 +136,16 @@ async function deleteEvent(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal } = await requireTaster(req);
     const eventId = req.params.eventId;
     const container = getContainer('events');
     const { resource } = await container.item(eventId, eventId).read();
     if (!resource) return notFound('Event not found');
 
-    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+    if (
+      !(await isAdmin(principal)) &&
+      resource.createdByUserId !== principal.userId
+    ) {
       return {
         status: 403,
         body: JSON.stringify({ error: 'Only the creator or admin can delete this event' }),
