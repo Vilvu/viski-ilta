@@ -28,14 +28,32 @@ interface SwaAuthResponse {
   } | null;
 }
 
-/**
- * Resolves the authenticated identity (userId/name/email) from SWA's
- * /.auth/me endpoint. This is identity only — it does NOT determine
- * admin/taster authorization. Authorization comes from the app's own
- * `users` document (DB role), sourced via useAuth below.
- */
-function useIdentity(): IdentityState {
-  const [state, setState] = useState<IdentityState>({
+let authCachePromise: Promise<SwaAuthResponse> | null = null;
+let isFetching = false;
+
+function fetchAuthMe(force = false): Promise<SwaAuthResponse> {
+  if (!authCachePromise || (force && !isFetching)) {
+    isFetching = true;
+    authCachePromise = fetch('/.auth/me')
+      .then((res) => {
+        isFetching = false;
+        if (!res.ok) {
+          authCachePromise = null;
+          throw new Error('Network response was not ok');
+        }
+        return res.json();
+      })
+      .catch((err) => {
+        isFetching = false;
+        authCachePromise = null;
+        throw err;
+      });
+  }
+  return authCachePromise;
+}
+
+export function useAuth(): AuthState {
+  const [authState, setAuthState] = useState<AuthState>({
     user: null,
     isLoading: true,
     isAuthenticated: false,
@@ -46,8 +64,8 @@ function useIdentity(): IdentityState {
 
     async function fetchIdentity(retries = 3, delayMs = 100) {
       try {
-        const response = await fetch('/.auth/me');
-        const data: SwaAuthResponse = await response.json();
+        const isRetry = retries < 3;
+        const data = await fetchAuthMe(isRetry);
 
         if (cancelled) return;
 
