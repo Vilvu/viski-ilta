@@ -152,7 +152,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <footer className={styles.footer}>
-        <p>© 2024 {t('app.name')}</p>
+        <p>© 2026 {t('app.name')}</p>
       </footer>
       {isAuthenticated &&
         !isLoading &&
