@@ -409,16 +409,6 @@ export default function EventDetailPage() {
                     </p>
                   </div>
                   <div className={styles.ratings}>
-                    <div className={styles.ratingBadge}>
-                      <span className={styles.ratingLabel}>
-                        {t('eventDetail.ratingLabels.avg')}
-                      </span>
-                      <span className={styles.ratingValue}>
-                        {whiskey.ratingCount > 0
-                          ? whiskey.averageRating.toFixed(1)
-                          : '—'}
-                      </span>
-                    </div>
                     {whiskey.userRating !== undefined && (
                       <div
                         className={styles.ratingBadge + ' ' + styles.userRating}
@@ -431,6 +421,16 @@ export default function EventDetailPage() {
                         </span>
                       </div>
                     )}
+                    <div className={styles.ratingBadge}>
+                      <span className={styles.ratingLabel}>
+                        {t('eventDetail.ratingLabels.avg')}
+                      </span>
+                      <span className={styles.ratingValue}>
+                        {whiskey.ratingCount > 0
+                          ? whiskey.averageRating.toFixed(1)
+                          : '—'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
