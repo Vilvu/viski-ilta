@@ -93,6 +93,7 @@
     "yourRating": "Your Rating",
     "scoreLabel": "Score (1–10)",
     "notesLabel": "Notes (optional)",
+    "tastingNotesPlaceholder": "Tasting notes, impressions...",
     "submitRating": "Submit rating",
     "updateRating": "Update rating",
     "ratingCount_one": "{{count}} rating",

@@ -93,6 +93,7 @@
     "yourRating": "Oma arvostelu",
     "scoreLabel": "Pisteet (1–10)",
     "notesLabel": "Huomautukset (valinnainen)",
+    "tastingNotesPlaceholder": "Makumuistiinpanot, vaikutelmat...",
     "submitRating": "Lähetä arvostelu",
     "updateRating": "Päivitä arvostelu",
     "ratingCount_one": "{{count}} arvostelu",
