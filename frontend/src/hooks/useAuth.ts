@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { User } from '@/types';
+import { usersApi } from '@/api/users';
+
+interface IdentityState {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
 
 interface AuthState {
   user: User | null;
@@ -20,19 +28,23 @@ interface SwaAuthResponse {
   } | null;
 }
 
-export function useAuth(): AuthState {
-  const [authState, setAuthState] = useState<AuthState>({
+/**
+ * Resolves the authenticated identity (userId/name/email) from SWA's
+ * /.auth/me endpoint. This is identity only — it does NOT determine
+ * admin/taster authorization. Authorization comes from the app's own
+ * `users` document (DB role), sourced via useAuth below.
+ */
+function useIdentity(): IdentityState {
+  const [state, setState] = useState<IdentityState>({
     user: null,
     isLoading: true,
     isAuthenticated: false,
-    isAdmin: false,
-    isTaster: false,
   });
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchAuthState(retries = 3, delayMs = 100) {
+    async function fetchIdentity(retries = 3, delayMs = 100) {
       try {
         const response = await fetch('/.auth/me');
         const data: SwaAuthResponse = await response.json();
@@ -40,15 +52,11 @@ export function useAuth(): AuthState {
         if (cancelled) return;
 
         if (data.clientPrincipal) {
-          const { userId, userRoles, claims, userDetails } =
-            data.clientPrincipal;
+          const { userId, claims, userDetails } = data.clientPrincipal;
           const nameClaim =
             claims?.find((c) => c.typ === 'name') ??
             claims?.find((c) => c.typ === 'preferred_username') ??
             claims?.find((c) => c.typ === 'upn');
-          const isAdmin = userRoles.includes('admin');
-          const isTaster = userRoles.includes('taster') || isAdmin;
-          const role = isAdmin ? 'admin' : isTaster ? 'taster' : 'user';
 
           // Detect Azure SWA masked userDetails (e.g. "vil*****") —
           // a few real characters followed by a run of asterisks.
@@ -60,7 +68,7 @@ export function useAuth(): AuthState {
 
           if (isDetailsMasked && retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
-            if (!cancelled) return fetchAuthState(retries - 1, delayMs * 2);
+            if (!cancelled) return fetchIdentity(retries - 1, delayMs * 2);
             return;
           }
 
@@ -68,64 +76,80 @@ export function useAuth(): AuthState {
             // Retries exhausted but data is still masked — treat as failure
             // rather than rendering a corrupted username like "vil*****".
             console.warn(
-              'useAuth: /.auth/me still returned masked userDetails after all retries. ' +
+              'useIdentity: /.auth/me still returned masked userDetails after all retries. ' +
                 'Azure SWA may have changed its response format.',
             );
             if (!cancelled) {
-              setAuthState({
+              setState({
                 user: null,
                 isLoading: false,
                 isAuthenticated: false,
-                isAdmin: false,
-                isTaster: false,
               });
             }
             return;
           }
 
           if (!cancelled) {
-            setAuthState({
+            setState({
               user: {
                 id: userId,
                 email: userDetails,
                 name: nameClaim?.val ?? userDetails,
-                role,
+                // Legacy field retained on the User type for compatibility;
+                // real authorization role comes from the DB (see useAuth).
+                role: 'user',
               },
               isLoading: false,
               isAuthenticated: true,
-              isAdmin,
-              isTaster,
             });
           }
         } else {
           if (!cancelled) {
-            setAuthState({
-              user: null,
-              isLoading: false,
-              isAuthenticated: false,
-              isAdmin: false,
-              isTaster: false,
-            });
+            setState({ user: null, isLoading: false, isAuthenticated: false });
           }
         }
       } catch {
         if (!cancelled) {
-          setAuthState({
-            user: null,
-            isLoading: false,
-            isAuthenticated: false,
-            isAdmin: false,
-            isTaster: false,
-          });
+          setState({ user: null, isLoading: false, isAuthenticated: false });
         }
       }
     }
 
-    fetchAuthState();
+    fetchIdentity();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return authState;
+  return state;
+}
+
+/**
+ * Combines SWA identity with the app-managed DB role (from
+ * GET /api/users/me) to produce the authoritative isAdmin/isTaster flags.
+ * `admin` implies `taster`.
+ */
+export function useAuth(): AuthState {
+  const identity = useIdentity();
+
+  const profileQuery = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: usersApi.getMe,
+    enabled: identity.isAuthenticated,
+  });
+
+  const role = profileQuery.data?.role;
+  const isAdmin = role === 'admin';
+  const isTaster = role === 'taster' || isAdmin;
+
+  const isLoading =
+    identity.isLoading || (identity.isAuthenticated && profileQuery.isLoading);
+
+  return {
+    user: identity.user,
+    isLoading,
+    isAuthenticated: identity.isAuthenticated,
+    isAdmin,
+    isTaster,
+  };
 }

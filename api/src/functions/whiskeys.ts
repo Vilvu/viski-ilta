@@ -9,7 +9,6 @@ import {
   requireTaster,
   isAdmin,
   getClientPrincipal,
-  getUserDisplayName,
 } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { recomputeGlobalAggregate } from '../lib/aggregates';
@@ -143,7 +142,7 @@ async function createCatalogWhiskey(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal, profile } = await requireTaster(req);
     const body = (await req.json()) as Partial<WhiskeyDocument>;
 
     if (!body.name) {
@@ -155,10 +154,9 @@ async function createCatalogWhiskey(
       };
     }
 
-    const displayName = await getUserDisplayName(principal);
     const whiskey = await insertCatalogWhiskey(
       { name: body.name, distillery: body.distillery, region: body.region, age: body.age, abv: body.abv, description: body.description },
-      displayName,
+      profile.displayName,
       principal.userId,
     );
 
@@ -199,7 +197,7 @@ async function updateCatalogWhiskey(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal } = await requireTaster(req);
     const { whiskeyId } = req.params;
     const container = getContainer('whiskeys');
     const { resource } = await container.item(whiskeyId, whiskeyId).read();
@@ -207,7 +205,10 @@ async function updateCatalogWhiskey(
     if (!resource) return notFound('Whiskey not found');
 
     // Creator-or-admin guard
-    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+    if (
+      !(await isAdmin(principal)) &&
+      resource.createdByUserId !== principal.userId
+    ) {
       return {
         status: 403,
         body: JSON.stringify({
@@ -252,7 +253,7 @@ async function deleteCatalogWhiskey(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal } = await requireTaster(req);
     const { whiskeyId } = req.params;
     const container = getContainer('whiskeys');
     const { resource } = await container.item(whiskeyId, whiskeyId).read();
@@ -260,7 +261,10 @@ async function deleteCatalogWhiskey(
     if (!resource) return notFound('Whiskey not found');
 
     // Creator-or-admin guard
-    if (!isAdmin(principal) && resource.createdByUserId !== principal.userId) {
+    if (
+      !(await isAdmin(principal)) &&
+      resource.createdByUserId !== principal.userId
+    ) {
       return {
         status: 403,
         body: JSON.stringify({
@@ -433,14 +437,11 @@ async function addWhiskeyToEvent(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal, profile } = await requireTaster(req);
     const { eventId } = req.params;
     const body = (await req.json()) as Partial<WhiskeyDocument> & {
       whiskeyId?: string;
     };
-
-    // Resolve display name once — used for both catalog whiskey createdBy and link addedBy
-    const displayName = await getUserDisplayName(principal);
 
     let whiskeyId: string = body.whiskeyId || '';
 
@@ -457,7 +458,7 @@ async function addWhiskeyToEvent(
 
       const newWhiskey = await insertCatalogWhiskey(
         { name: body.name, distillery: body.distillery, region: body.region, age: body.age, abv: body.abv, description: body.description },
-        displayName,
+        profile.displayName,
         principal.userId,
       );
       whiskeyId = newWhiskey.id;
@@ -500,7 +501,7 @@ async function addWhiskeyToEvent(
       id: uuidv4(),
       eventId,
       whiskeyId,
-      addedBy: displayName,
+      addedBy: profile.displayName,
       addedByUserId: principal.userId,
       createdAt: now,
       averageRating: 0,
@@ -548,7 +549,7 @@ async function getEventWhiskey(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal } = await requireTaster(req);
     const { eventId, whiskeyId } = req.params;
 
     // Read the link
@@ -631,7 +632,7 @@ async function removeWhiskeyFromEvent(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireTaster(req);
+    const { principal } = await requireTaster(req);
     const { eventId, whiskeyId } = req.params;
 
     // Find and read the link
@@ -654,7 +655,10 @@ async function removeWhiskeyFromEvent(
     const link = links[0];
 
     // Link creator-or-admin guard (using addedByUserId as the guard)
-    if (!isAdmin(principal) && link.addedByUserId !== principal.userId) {
+    if (
+      !(await isAdmin(principal)) &&
+      link.addedByUserId !== principal.userId
+    ) {
       return {
         status: 403,
         body: JSON.stringify({

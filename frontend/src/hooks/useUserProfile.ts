@@ -14,7 +14,9 @@ export function useUserProfile() {
   return {
     ...query,
     data: query.data,
-    hasProfile: query.data !== null && query.data !== undefined,
+    // GET /api/users/me now always ensures a doc exists (ensureUser), so the
+    // profile is considered present as soon as the query has resolved.
+    hasProfile: query.data !== undefined,
   };
 }
 

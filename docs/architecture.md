@@ -237,12 +237,16 @@ api/
 │   │   │                    GET/PATCH/DELETE /api/whiskeys/:whiskeyId
 │   │   │                    GET/POST /api/events/:eventId/whiskeys (event links)
 │   │   │                    GET/DELETE /api/events/:eventId/whiskeys/:whiskeyId
-│   │   └── ratings.ts     — GET /api/events/:eventId/whiskeys/:whiskeyId/ratings
-│   │                        PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me
+│   │   ├── ratings.ts     — GET /api/events/:eventId/whiskeys/:whiskeyId/ratings
+│   │   │                    PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me
+│   │   └── users.ts       — GET/PUT /api/users/me (profile: displayName, email, role)
+│   │                        GET /api/users (admin-only, list all)
+│   │                        PUT /api/users/:id/role (admin-only, assign role)
 │   └── lib/
 │       ├── cosmos.ts      — getContainer() — routes to mock or real Cosmos DB
-│       ├── cosmos.mock.ts — MockContainer + seed data
-│       ├── auth.ts        — getClientPrincipal, requireTaster, isAdmin, getUserDisplayName
+│       ├── cosmos.mock.ts — MockContainer + seed data (incl. a seeded mock admin user)
+│       ├── auth.ts        — getClientPrincipal, ensureUser, getUserRole (DB-backed),
+│       │                    requireTaster/requireAdmin (async, DB role), getUserDisplayName
 │       ├── response.ts    — ok, created, noContent, notFound, handleError helpers
 │       └── aggregates.ts  — recomputeEventAggregate, recomputeGlobalAggregate
 ├── host.json

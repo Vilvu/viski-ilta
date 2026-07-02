@@ -7,7 +7,7 @@ A web application for recording and tracking user whisky ratings from whisky tas
 - **Frontend**: React + TypeScript + Vite
 - **Backend**: Azure Functions v4 (Node.js/TypeScript)
 - **Database**: Azure Cosmos DB (serverless)
-- **Auth**: Azure Static Web Apps built-in auth (Microsoft Entra ID)
+- **Auth**: Azure Static Web Apps built-in auth (Microsoft Entra ID) for sign-in only; authorization roles (`anonymous`/`taster`/`admin`) are app-managed in Cosmos DB — see [Deployment Guide § 4](context/WhiskyApp/deployment.md#4-admin-role-assignment) for first-admin bootstrap
 - **Hosting**: Azure Static Web Apps
 
 ## Project Structure
@@ -49,8 +49,5 @@ See the [Deployment Guide](context/WhiskyApp/deployment.md) for comprehensive Az
 
 ## Documentation
 
-- [Product Requirements](context/WhiskyApp/prd.md)
 - [Architecture](context/WhiskyApp/architecture.md)
-- [Technical Specification](context/WhiskyApp/technical.md)
 - [Deployment Guide](context/WhiskyApp/deployment.md)
-- [TODO](context/WhiskyApp/TODO.md)

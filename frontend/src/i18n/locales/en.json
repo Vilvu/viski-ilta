@@ -5,6 +5,7 @@
   "nav": {
     "events": "Events",
     "ranking": "Ranking",
+    "userManagement": "User Management",
     "signIn": "Sign in",
     "signOut": "Sign out",
     "editName": "Edit display name",
@@ -138,5 +139,23 @@
     "heading": "404 — Page Not Found",
     "evaporated": "This dram seems to have evaporated.",
     "backToEvents": "Back to Events"
+  },
+  "userManagement": {
+    "title": "User Management",
+    "emptyMessage": "No users found.",
+    "loadFailed": "Failed to load users",
+    "updateFailed": "Failed to update role",
+    "cannotChangeSelf": "You cannot change your own role",
+    "confirmRoleChange": "Change this user's role to {{role}}?",
+    "columns": {
+      "email": "Email",
+      "displayName": "Display Name",
+      "role": "Role"
+    },
+    "roles": {
+      "anonymous": "Anonymous",
+      "taster": "Taster",
+      "admin": "Admin"
+    }
   }
 }

@@ -54,6 +54,18 @@ export interface EventWhiskey {
   userRating?: number;
 }
 
+// App-managed role, sourced from the Cosmos `users` document (DB role).
+// Distinct from the legacy SWA-derived `UserRole` below, which includes
+// a 'user' value that the DB role never produces.
+export type AppRole = 'anonymous' | 'taster' | 'admin';
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: AppRole;
+}
+
 export interface Rating {
   id: string;
   whiskeyId: string;

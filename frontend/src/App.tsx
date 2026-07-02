@@ -7,8 +7,10 @@ import EventDetailPage from '@/pages/EventDetailPage';
 import WhiskeyDetailPage from '@/pages/WhiskeyDetailPage';
 import CatalogWhiskeyDetailPage from '@/pages/CatalogWhiskeyDetailPage';
 import RankingPage from '@/pages/RankingPage';
+import UserManagementPage from '@/pages/UserManagementPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import TasterRoute from '@/components/ProtectedRoute';
+import AdminRoute from '@/components/AdminRoute';
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -38,6 +40,14 @@ function App() {
             <TasterRoute>
               <WhiskeyDetailPage />
             </TasterRoute>
+          }
+        />
+        <Route
+          path="admin/users"
+          element={
+            <AdminRoute>
+              <UserManagementPage />
+            </AdminRoute>
           }
         />
         <Route path="*" element={<NotFoundPage />} />

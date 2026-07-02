@@ -5,6 +5,7 @@
   "nav": {
     "events": "Tapahtumat",
     "ranking": "Tilastot",
+    "userManagement": "Käyttäjähallinta",
     "signIn": "Kirjaudu sisään",
     "signOut": "Kirjaudu ulos",
     "editName": "Muokkaa näyttönimeä",
@@ -138,5 +139,23 @@
     "heading": "404 — Sivua ei löytynyt",
     "evaporated": "Tämä viski näyttää haihtuneen.",
     "backToEvents": "Takaisin tapahtumiin"
+  },
+  "userManagement": {
+    "title": "Käyttäjähallinta",
+    "emptyMessage": "Käyttäjiä ei löytynyt.",
+    "loadFailed": "Käyttäjien lataaminen epäonnistui",
+    "updateFailed": "Roolin päivittäminen epäonnistui",
+    "cannotChangeSelf": "Et voi muuttaa omaa rooliasi",
+    "confirmRoleChange": "Vaihdetaanko käyttäjän rooliksi {{role}}?",
+    "columns": {
+      "email": "Sähköposti",
+      "displayName": "Näyttönimi",
+      "role": "Rooli"
+    },
+    "roles": {
+      "anonymous": "Anonyymi",
+      "taster": "Maistelija",
+      "admin": "Ylläpitäjä"
+    }
   }
 }

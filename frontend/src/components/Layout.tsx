@@ -10,7 +10,7 @@ import styles from './Layout.module.css';
 
 export default function Layout() {
   const { t } = useTranslation();
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
   const {
     data: profile,
     isLoading: profileLoading,
@@ -52,6 +52,9 @@ export default function Layout() {
           <nav className={styles.nav}>
             <Link to="/">{t('nav.events')}</Link>
             <Link to="/ranking">{t('nav.ranking')}</Link>
+            {!isLoading && isAdmin && (
+              <Link to="/admin/users">{t('nav.userManagement')}</Link>
+            )}
             {!isLoading &&
               (isAuthenticated ? (
                 <div className={styles.userMenu}>
@@ -105,6 +108,11 @@ export default function Layout() {
               <a href="/ranking" onClick={closeMenu} role="menuitem">
                 {t('nav.ranking')}
               </a>
+              {!isLoading && isAdmin && (
+                <a href="/admin/users" onClick={closeMenu} role="menuitem">
+                  {t('nav.userManagement')}
+                </a>
+              )}
               <LanguageSwitcher />
               {!isLoading &&
                 (isAuthenticated ? (
