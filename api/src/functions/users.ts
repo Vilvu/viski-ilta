@@ -43,6 +43,7 @@ async function getMe(
       displayName: profile.displayName,
       email: profile.email,
       role: profile.role,
+      usernameConfirmed: profile.usernameConfirmed,
     });
   } catch (error) {
     return handleError(error);
@@ -71,12 +72,13 @@ async function updateMe(
     const container = getContainer('users');
     const now = new Date().toISOString();
 
-    // Use patch operation to update only displayName and updatedAt
+    // Use patch operation to update only displayName/usernameConfirmed/updatedAt
     // This avoids the lost update issue when setUserRole modifies the role concurrently
     const { resource: updated } = await container
       .item(principal.userId, principal.userId)
       .patch([
         { op: 'set', path: '/displayName', value: displayName },
+        { op: 'set', path: '/usernameConfirmed', value: true },
         { op: 'set', path: '/updatedAt', value: now }
       ]);
 
@@ -84,6 +86,7 @@ async function updateMe(
       displayName: updated.displayName,
       email: updated.email,
       role: updated.role,
+      usernameConfirmed: updated.usernameConfirmed,
     });
   } catch (error: unknown) {
     return handleError(error);

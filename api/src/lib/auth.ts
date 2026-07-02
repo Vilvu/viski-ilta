@@ -59,6 +59,15 @@ export interface UserProfile {
   displayName: string;
   email: string;
   role: AppRole;
+  // False until the user explicitly saves a display name via PUT /users/me.
+  // Auto-provisioned docs (first sign-in) start out unconfirmed so the
+  // frontend knows to prompt for a display name. Docs predating this field
+  // are backfilled to `false` too (see backfill below) — this may briefly
+  // re-prompt already-confirmed legacy users, but the modal pre-fills their
+  // existing displayName so re-confirming is a harmless no-op for them,
+  // whereas defaulting to `true` would permanently silence the prompt for
+  // users auto-provisioned during the window before this field existed.
+  usernameConfirmed: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,67 +75,105 @@ export interface UserProfile {
 /**
  * Ensures a `users` document exists for the authenticated principal.
  * Creates one with role='anonymous' on first sign-in, capturing email and
- * displayName from Entra claims. If an existing doc is missing `email` or
- * `role` (legacy docs), backfills those fields.
+ * displayName from Entra claims. If an existing doc is missing `email`,
+ * `role`, or `usernameConfirmed` (legacy docs), backfills those fields.
  */
 export async function ensureUser(
   principal: ClientPrincipal,
 ): Promise<UserProfile> {
   const container = getContainer('users');
-  const { resource } = await container
-    .item(principal.userId, principal.userId)
-    .read();
   const now = new Date().toISOString();
   const email = getUserEmail(principal);
 
-  if (!resource) {
-    const profile: UserProfile = {
-      id: principal.userId,
-      displayName: getUserName(principal),
-      email,
-      role: 'anonymous',
-      createdAt: now,
-      updatedAt: now,
-    };
-    
-    try {
-      const { resource: created } = await container.items.create(profile);
-      return created as UserProfile;
-    } catch (error: any) {
-      // Handle Cosmos 409 conflict - another request created the user concurrently
-      // Re-read the existing document
-      if (error.code === 409) {
-        const { resource: existing } = await container
-          .item(principal.userId, principal.userId)
-          .read();
-        if (existing) {
-          return existing as UserProfile;
+  const MAX_RETRIES = 5;
+  let retryCount = 0;
+
+  while (retryCount < MAX_RETRIES) {
+    const { resource, etag } = await container
+      .item(principal.userId, principal.userId)
+      .read();
+
+    if (!resource) {
+      const profile: UserProfile = {
+        id: principal.userId,
+        displayName: getUserName(principal),
+        email,
+        role: 'anonymous',
+        usernameConfirmed: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      try {
+        const { resource: created } = await container.items.create(profile);
+        return created as UserProfile;
+      } catch (error: any) {
+        // Handle Cosmos 409 conflict - another request created the user concurrently
+        // Re-read the existing document
+        if (error.code === 409) {
+          const { resource: existing } = await container
+            .item(principal.userId, principal.userId)
+            .read();
+          if (existing) {
+            return existing as UserProfile;
+          }
         }
+        // For other errors, re-throw
+        throw error;
       }
-      // For other errors, re-throw
-      throw error;
     }
-  }
 
-  const needsEmailBackfill = !resource.email;
-  const needsRoleBackfill = !resource.role;
+    const needsEmailBackfill = !resource.email;
+    const needsRoleBackfill = !resource.role;
+    // Legacy docs predate this field entirely (undefined). Backfill to
+    // `false` rather than `true`: docs auto-provisioned during the window
+    // before this field existed never had a confirmed username either, so
+    // defaulting to `true` would permanently hide the setup prompt from
+    // those users. Re-prompting genuinely legacy (already-named) users is a
+    // harmless no-op since the modal pre-fills their existing displayName.
+    const needsConfirmedBackfill = resource.usernameConfirmed === undefined;
 
-  if (needsEmailBackfill || needsRoleBackfill) {
+    if (!needsEmailBackfill && !needsRoleBackfill && !needsConfirmedBackfill) {
+      return resource as UserProfile;
+    }
+
     const profile: UserProfile = {
       id: resource.id,
       displayName: resource.displayName,
       email: needsEmailBackfill ? email : resource.email,
       role: needsRoleBackfill ? 'anonymous' : resource.role,
+      usernameConfirmed: needsConfirmedBackfill
+        ? false
+        : resource.usernameConfirmed,
       createdAt: resource.createdAt,
       updatedAt: now,
     };
-    const { resource: saved } = await container
-      .item(principal.userId, principal.userId)
-      .replace(profile);
-    return saved as UserProfile;
+
+    try {
+      // Optimistic concurrency: only write if the doc hasn't changed since
+      // we read it, so this lazy backfill can't clobber a concurrent
+      // setUserRole (or another backfill) update. On conflict, retry.
+      const options = etag ? { accessCondition: { type: 'IfMatch', condition: etag } } : {};
+      const { resource: saved } = await container
+        .item(principal.userId, principal.userId)
+        .replace(profile, options);
+      return saved as UserProfile;
+    } catch (error: any) {
+      if (
+        error.code === 412 ||
+        (error.message && error.message.includes('Precondition Failed'))
+      ) {
+        retryCount++;
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.random() * 50),
+        );
+        continue;
+      }
+      throw error;
+    }
   }
 
-  return resource as UserProfile;
+  throw new Error('Failed to ensure user document due to concurrent modifications');
 }
 
 /**

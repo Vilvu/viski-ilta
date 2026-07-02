@@ -14,9 +14,11 @@ export function useUserProfile() {
   return {
     ...query,
     data: query.data,
-    // GET /api/users/me now always ensures a doc exists (ensureUser), so the
-    // profile is considered present as soon as the query has resolved.
-    hasProfile: query.data !== undefined,
+    // True once the user has explicitly confirmed/saved a display name.
+    // Auto-provisioned docs (first sign-in) start unconfirmed, which is what
+    // drives the username setup prompt in Layout.tsx.
+    needsUsernameSetup:
+      query.data !== undefined && query.data.usernameConfirmed === false,
   };
 }
 

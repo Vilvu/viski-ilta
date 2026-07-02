@@ -172,6 +172,7 @@ function initializeSeedData() {
     displayName: 'Admin',
     email: 'admin@example.com',
     role: 'admin',
+    usernameConfirmed: true,
     createdAt: '2026-05-01T09:00:00Z',
     updatedAt: '2026-05-01T09:00:00Z',
   };

@@ -14,7 +14,7 @@ export default function Layout() {
   const {
     data: profile,
     isLoading: profileLoading,
-    hasProfile,
+    needsUsernameSetup,
   } = useUserProfile();
   const [showEditModal, setShowEditModal] = useState(false);
   const [setupDismissed, setSetupDismissed] = useState(false);
@@ -157,7 +157,7 @@ export default function Layout() {
       {isAuthenticated &&
         !isLoading &&
         !profileLoading &&
-        !hasProfile &&
+        needsUsernameSetup &&
         !setupDismissed && (
           <UsernameSetupModal
             defaultName={user?.name ?? ''}

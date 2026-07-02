@@ -5,6 +5,7 @@ export interface UserProfile {
   displayName: string;
   email: string;
   role: AppRole;
+  usernameConfirmed: boolean;
 }
 
 export const usersApi = {
