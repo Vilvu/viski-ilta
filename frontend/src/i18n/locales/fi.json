@@ -72,7 +72,7 @@
       "description": "Tapahtuman kuvaus",
       "eventDescription": "Tapahtuman kuvaus",
       "location": "Sijainti",
-      "tastingNotes": "Makumuistiot"
+      "tastingNotes": "Makumuistiinpanot"
     },
     "whiskeyCount_one": "Viski ({{count}})",
     "whiskeyCount_other": "Viskit ({{count}})",
@@ -100,7 +100,7 @@
     "noRatings": "Ei arvosteluja vielä",
     "noRatingsYet": "Ei arvosteluja vielä",
     "allRatings": "Kaikki arvostelut",
-    "tasterRequired": "Vain tapahtuman maistelijat voivat arvostella viskejä.",
+    "tasterRequired": "Vain maistelijat voivat arvostella viskejä.",
     "signInPrompt": "Kirjaudu Googlella arvostellaksesi tätä viskiä",
     "confirmRemoveRating": "Oletko varma, että haluat poistaa arvostelusi?",
     "confirmDelete": "Oletko varma, että haluat poistaa tämän viskin?",
