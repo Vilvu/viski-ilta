@@ -63,7 +63,7 @@ interface JoinedWhiskey {
  * Extracted to avoid duplicating this logic between createCatalogWhiskey
  * and the create+link branch of addWhiskeyToEvent.
  */
-export async function insertCatalogWhiskey(
+async function insertCatalogWhiskey(
   body: {
     name: string;
     distillery?: string;

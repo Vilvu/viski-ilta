@@ -422,10 +422,15 @@ export function createFakeCosmos(): FakeCosmos {
       const storage = containerStorage(container);
       const pkField = partitionKeyFieldFor(container);
       for (const doc of docs) {
+        // Compute the etag once and reuse it for both fields, matching the
+        // invariant every other mutation path (create/replace/patch)
+        // maintains: stored.doc._etag must equal stored.etag, since read()
+        // and checkAccessCondition() both rely on that.
+        const etag = (doc._etag as string) ?? nextEtag();
         storage.set(doc.id, {
-          doc: { ...doc, _etag: doc._etag ?? nextEtag() },
+          doc: { ...doc, _etag: etag },
           partitionKeyValue: String(doc[pkField]),
-          etag: (doc._etag as string) ?? nextEtag(),
+          etag,
         });
       }
     },
