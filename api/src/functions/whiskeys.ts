@@ -329,7 +329,7 @@ export async function deleteCatalogWhiskey(
         if (event && event.whiskeyCount > 0) {
           await eventsContainer
             .item(eventId, eventId)
-            .patch([{ op: 'increment', path: '/whiskeyCount', value: -1 }]);
+            .patch([{ op: 'incr', path: '/whiskeyCount', value: -1 }]);
         }
       }),
     );

@@ -106,14 +106,32 @@ function resolveParam(
   return found.value;
 }
 
+interface ItemAccessor {
+  read: () => Promise<{ resource: Doc | undefined; etag: string | undefined }>;
+  replace: (
+    newItem: Doc,
+    options?: FakeAccessCondition,
+  ) => Promise<{ resource: Doc }>;
+  delete: (options?: FakeAccessCondition) => Promise<void>;
+  patch: (
+    operations: FakePatchOperation[],
+    options?: FakeAccessCondition,
+  ) => Promise<{ resource: Doc }>;
+}
+
 class FakeContainerImpl {
+  // Memoized per (id, partitionKey) so vi.spyOn on a previously-obtained
+  // accessor's methods also affects the handler code under test, which
+  // calls container.item(id, pk) fresh on every access.
+  private readonly itemAccessors = new Map<string, ItemAccessor>();
+
   constructor(
     private readonly name: string,
     private readonly storage: Map<string, StoredDoc>,
     private readonly calls: FakeQueryCall[],
   ) {}
 
-  get items() {
+  readonly items = (() => {
     return {
       query: (
         querySpec: string | FakeQuerySpec,
@@ -155,9 +173,19 @@ class FakeContainerImpl {
         return { resource: { ...stored.doc } };
       },
     };
+  })();
+
+  item(id: string, partitionKey: string): ItemAccessor {
+    const cacheKey = `${id}::${partitionKey}`;
+    const cached = this.itemAccessors.get(cacheKey);
+    if (cached) return cached;
+
+    const accessor = this.buildItemAccessor(id, partitionKey);
+    this.itemAccessors.set(cacheKey, accessor);
+    return accessor;
   }
 
-  item(id: string, partitionKey: string) {
+  private buildItemAccessor(id: string, partitionKey: string): ItemAccessor {
     const find = (): StoredDoc | undefined => {
       const stored = this.storage.get(id);
       if (!stored) return undefined;
@@ -363,6 +391,7 @@ export interface FakeCosmos {
 
 export function createFakeCosmos(): FakeCosmos {
   const containers = new Map<string, Map<string, StoredDoc>>();
+  const containerInstances = new Map<string, FakeContainerImpl>();
   const calls: FakeQueryCall[] = [];
 
   const containerStorage = (name: string): Map<string, StoredDoc> => {
@@ -374,9 +403,21 @@ export function createFakeCosmos(): FakeCosmos {
     return storage;
   };
 
+  // getContainer returns a stable instance per name so that vi.spyOn on a
+  // previously-obtained container's .items/.item(...) methods also affects
+  // the handler code under test, which calls getContainer(name) fresh on
+  // every invocation.
+  const getContainer = (name: string): FakeContainerImpl => {
+    let instance = containerInstances.get(name);
+    if (!instance) {
+      instance = new FakeContainerImpl(name, containerStorage(name), calls);
+      containerInstances.set(name, instance);
+    }
+    return instance;
+  };
+
   return {
-    getContainer: (name: string) =>
-      new FakeContainerImpl(name, containerStorage(name), calls),
+    getContainer,
     seed: (container: string, docs: Doc[]) => {
       const storage = containerStorage(container);
       const pkField = partitionKeyFieldFor(container);
@@ -389,7 +430,13 @@ export function createFakeCosmos(): FakeCosmos {
       }
     },
     reset: () => {
-      containers.clear();
+      // Clear each container's storage in place (rather than replacing the
+      // Map instances) so already-cached FakeContainerImpl instances — and
+      // any item()/items accessors a test has vi.spyOn'd — keep working
+      // against the same (now-empty) storage after a reset.
+      for (const storage of containers.values()) {
+        storage.clear();
+      }
       calls.length = 0;
     },
     calls,
