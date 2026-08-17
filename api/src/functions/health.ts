@@ -6,7 +6,7 @@ import {
 } from '@azure/functions';
 import { CosmosClient } from '@azure/cosmos';
 
-async function healthHandler(
+export async function healthHandler(
   _req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {

@@ -31,7 +31,7 @@ function validateDisplayName(displayName: string): string | null {
 }
 
 // GET /api/users/me
-async function getMe(
+export async function getMe(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -51,7 +51,7 @@ async function getMe(
 }
 
 // PUT /api/users/me
-async function updateMe(
+export async function updateMe(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -94,7 +94,7 @@ async function updateMe(
 }
 
 // GET /api/users (admin-only)
-async function listUsers(
+export async function listUsers(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -119,7 +119,7 @@ async function listUsers(
 }
 
 // PUT /api/users/{id}/role (admin-only)
-async function setUserRole(
+export async function setUserRole(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {

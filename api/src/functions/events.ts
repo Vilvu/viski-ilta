@@ -23,7 +23,7 @@ interface EventDocument {
 }
 
 // GET /api/events
-async function getEvents(
+export async function getEvents(
   _req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -39,7 +39,7 @@ async function getEvents(
 }
 
 // POST /api/events
-async function createEvent(
+export async function createEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -79,7 +79,7 @@ async function createEvent(
 }
 
 // GET /api/events/{eventId}
-async function getEvent(
+export async function getEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -95,7 +95,7 @@ async function getEvent(
 }
 
 // PATCH /api/events/{eventId}
-async function updateEvent(
+export async function updateEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -135,7 +135,7 @@ async function updateEvent(
 }
 
 // DELETE /api/events/{eventId}
-async function deleteEvent(
+export async function deleteEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {

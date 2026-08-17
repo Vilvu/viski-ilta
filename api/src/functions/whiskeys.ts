@@ -63,7 +63,7 @@ interface JoinedWhiskey {
  * Extracted to avoid duplicating this logic between createCatalogWhiskey
  * and the create+link branch of addWhiskeyToEvent.
  */
-async function insertCatalogWhiskey(
+export async function insertCatalogWhiskey(
   body: {
     name: string;
     distillery?: string;
@@ -102,7 +102,7 @@ async function insertCatalogWhiskey(
  * List all catalog whiskeys ordered by global average rating.
  * Includes global aggregates; no event context.
  */
-async function getAllWhiskeys(
+export async function getAllWhiskeys(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -133,7 +133,7 @@ async function getAllWhiskeys(
  * POST /api/whiskeys
  * Create a new catalog whiskey (standalone, not linked to any event yet).
  */
-async function createCatalogWhiskey(
+export async function createCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -173,7 +173,7 @@ async function createCatalogWhiskey(
  * GET /api/whiskeys/{whiskeyId}
  * Retrieve a single catalog whiskey.
  */
-async function getCatalogWhiskey(
+export async function getCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -195,7 +195,7 @@ async function getCatalogWhiskey(
  * Update an existing catalog whiskey.
  * Requires creator-or-admin authorization.
  */
-async function updateCatalogWhiskey(
+export async function updateCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -255,7 +255,7 @@ async function updateCatalogWhiskey(
  * Requires creator-or-admin authorization.
  * Blocks deletion if whiskey is linked to any event (returns 409).
  */
-async function deleteCatalogWhiskey(
+export async function deleteCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -347,7 +347,7 @@ async function deleteCatalogWhiskey(
  * List all whiskeys linked to an event with event-scoped aggregates.
  * If authenticated, includes user's rating for each whiskey.
  */
-async function getEventWhiskeys(
+export async function getEventWhiskeys(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -446,7 +446,7 @@ async function getEventWhiskeys(
  * - Link existing: body { whiskeyId }
  * - Create + link: body { name, distillery, region, ... } (creates catalog whiskey first)
  */
-async function addWhiskeyToEvent(
+export async function addWhiskeyToEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -565,7 +565,7 @@ async function addWhiskeyToEvent(
  * GET /api/events/{eventId}/whiskeys/{whiskeyId}
  * Retrieve a single whiskey as it appears in an event (with event-scoped aggregates).
  */
-async function getEventWhiskey(
+export async function getEventWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -648,7 +648,7 @@ async function getEventWhiskey(
  * Requires link creator-or-admin authorization.
  * Deletes associated ratings and recomputes aggregates.
  */
-async function removeWhiskeyFromEvent(
+export async function removeWhiskeyFromEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {

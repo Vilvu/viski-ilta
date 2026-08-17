@@ -29,7 +29,7 @@ interface RatingDocument {
  * GET /api/events/{eventId}/whiskeys/{whiskeyId}/ratings
  * List all ratings for a whiskey in a specific event.
  */
-async function getRatings(
+export async function getRatings(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -61,7 +61,7 @@ async function getRatings(
  * Uniqueness is (eventId, whiskeyId, userId).
  * Recomputes both event-scoped and global aggregates after write.
  */
-async function upsertMyRating(
+export async function upsertMyRating(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -144,7 +144,7 @@ async function upsertMyRating(
  * Delete the authenticated user's rating for a whiskey in an event.
  * Recomputes both event-scoped and global aggregates after deletion.
  */
-async function deleteMyRating(
+export async function deleteMyRating(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -188,7 +188,7 @@ async function deleteMyRating(
  * GET /api/whiskeys/{whiskeyId}/ratings
  * List all ratings for a catalog whiskey across all events.
  */
-async function getWhiskeyRatingsGlobally(
+export async function getWhiskeyRatingsGlobally(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
