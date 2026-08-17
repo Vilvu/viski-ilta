@@ -204,7 +204,7 @@ async function getWhiskeyRatingsGlobally(
             'SELECT TOP 100 c.id, c.whiskeyId, c.score, c.notes, c.userName, c.createdAt, c.userId FROM c WHERE c.whiskeyId = @whiskeyId ORDER BY c.createdAt DESC',
           parameters: [{ name: '@whiskeyId', value: whiskeyId }],
         },
-        { enableCrossPartitionQuery: true }
+        { enableCrossPartitionQuery: true },
       )
       .fetchAll();
 

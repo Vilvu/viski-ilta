@@ -112,7 +112,9 @@ async function updateEvent(
     ) {
       return {
         status: 403,
-        body: JSON.stringify({ error: 'Only the creator or admin can update this event' }),
+        body: JSON.stringify({
+          error: 'Only the creator or admin can update this event',
+        }),
       };
     }
 
@@ -123,7 +125,9 @@ async function updateEvent(
       updatedAt: new Date().toISOString(),
     };
 
-    const { resource: updatedResource } = await container.item(eventId, eventId).replace(updated);
+    const { resource: updatedResource } = await container
+      .item(eventId, eventId)
+      .replace(updated);
     return ok(updatedResource);
   } catch (error) {
     return handleError(error);
@@ -148,7 +152,9 @@ async function deleteEvent(
     ) {
       return {
         status: 403,
-        body: JSON.stringify({ error: 'Only the creator or admin can delete this event' }),
+        body: JSON.stringify({
+          error: 'Only the creator or admin can delete this event',
+        }),
       };
     }
 

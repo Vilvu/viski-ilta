@@ -32,7 +32,9 @@ export async function recomputeEventAggregate(
   const averageRating =
     ratingCount > 0
       ? Math.round(
-          (ratings.reduce((sum: number, r: any) => sum + r.score, 0) / ratingCount) * 10,
+          (ratings.reduce((sum: number, r: any) => sum + r.score, 0) /
+            ratingCount) *
+            10,
         ) / 10
       : 0;
 
@@ -51,12 +53,10 @@ export async function recomputeEventAggregate(
   if (links.length > 0) {
     const linkId = links[0].id;
     // Patch the link with updated aggregates
-    await eventWhiskeysContainer
-      .item(linkId, eventId)
-      .patch([
-        { op: 'set', path: '/averageRating', value: averageRating },
-        { op: 'set', path: '/ratingCount', value: ratingCount },
-      ]);
+    await eventWhiskeysContainer.item(linkId, eventId).patch([
+      { op: 'set', path: '/averageRating', value: averageRating },
+      { op: 'set', path: '/ratingCount', value: ratingCount },
+    ]);
   }
 }
 
@@ -67,7 +67,9 @@ export async function recomputeEventAggregate(
  *
  * @param whiskeyId - Whiskey ID (partition key)
  */
-export async function recomputeGlobalAggregate(whiskeyId: string): Promise<void> {
+export async function recomputeGlobalAggregate(
+  whiskeyId: string,
+): Promise<void> {
   const ratingsContainer = getContainer('ratings');
   const whiskeysContainer = getContainer('whiskeys');
 
@@ -89,15 +91,15 @@ export async function recomputeGlobalAggregate(whiskeyId: string): Promise<void>
   const globalAverageRating =
     ratingCount > 0
       ? Math.round(
-          (ratings.reduce((sum: number, r: any) => sum + r.score, 0) / ratingCount) * 10,
+          (ratings.reduce((sum: number, r: any) => sum + r.score, 0) /
+            ratingCount) *
+            10,
         ) / 10
       : 0;
 
   // Patch the whiskey with updated global aggregates
-  await whiskeysContainer
-    .item(whiskeyId, whiskeyId)
-    .patch([
-      { op: 'set', path: '/globalAverageRating', value: globalAverageRating },
-      { op: 'set', path: '/globalRatingCount', value: ratingCount },
-    ]);
+  await whiskeysContainer.item(whiskeyId, whiskeyId).patch([
+    { op: 'set', path: '/globalAverageRating', value: globalAverageRating },
+    { op: 'set', path: '/globalRatingCount', value: ratingCount },
+  ]);
 }

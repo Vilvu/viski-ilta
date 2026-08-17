@@ -27,7 +27,10 @@ class MockContainer {
   get items() {
     return {
       // _options is accepted but ignored; the mock queries all items regardless of partition
-      query: (querySpec: string | QuerySpec, _options?: Record<string, unknown>) => {
+      query: (
+        querySpec: string | QuerySpec,
+        _options?: Record<string, unknown>,
+      ) => {
         return {
           fetchAll: async () => {
             const spec =

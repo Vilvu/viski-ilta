@@ -1,4 +1,9 @@
-import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from '@azure/functions';
 import { CosmosClient } from '@azure/cosmos';
 
 async function healthHandler(
@@ -32,13 +37,17 @@ async function healthHandler(
   // Try to connect to Cosmos and list databases
   try {
     const client = new CosmosClient({ endpoint, key });
-    const { resources: databases } = await client.databases.readAll().fetchAll();
+    const { resources: databases } = await client.databases
+      .readAll()
+      .fetchAll();
     const dbNames = databases.map((d) => d.id);
 
     let containers: string[] = [];
     try {
       const db = client.database(process.env.COSMOS_DATABASE ?? 'whiskyapp');
-      const { resources: containerList } = await db.containers.readAll().fetchAll();
+      const { resources: containerList } = await db.containers
+        .readAll()
+        .fetchAll();
       containers = containerList.map((c) => c.id);
     } catch (containerErr) {
       containers = [`ERROR: ${String(containerErr)}`];

@@ -264,17 +264,17 @@ export default function WhiskeyDetailPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Description</label>
-              <textarea
-                value={editForm.description}
-                onChange={(e) =>
-                  setEditForm((f) => ({
-                    ...f,
-                    description: e.target.value,
-                  }))
-                }
-                rows={2}
-                placeholder={t('eventDetail.placeholders.tastingNotes')}
-              />
+            <textarea
+              value={editForm.description}
+              onChange={(e) =>
+                setEditForm((f) => ({
+                  ...f,
+                  description: e.target.value,
+                }))
+              }
+              rows={2}
+              placeholder={t('eventDetail.placeholders.tastingNotes')}
+            />
           </div>
           <div className={styles.formActions}>
             <button

@@ -5,11 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import {
-  requireTaster,
-  isAdmin,
-  getClientPrincipal,
-} from '../lib/auth';
+import { requireTaster, isAdmin, getClientPrincipal } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { recomputeGlobalAggregate } from '../lib/aggregates';
 import { v4 as uuidv4 } from 'uuid';
@@ -155,7 +151,14 @@ async function createCatalogWhiskey(
     }
 
     const whiskey = await insertCatalogWhiskey(
-      { name: body.name, distillery: body.distillery, region: body.region, age: body.age, abv: body.abv, description: body.description },
+      {
+        name: body.name,
+        distillery: body.distillery,
+        region: body.region,
+        age: body.age,
+        abv: body.abv,
+        description: body.description,
+      },
       profile.displayName,
       principal.userId,
     );
@@ -228,14 +231,18 @@ async function updateCatalogWhiskey(
       age: body.age !== undefined ? body.age : resource.age,
       abv: body.abv !== undefined ? body.abv : resource.abv,
       description:
-        body.description !== undefined ? body.description : resource.description,
+        body.description !== undefined
+          ? body.description
+          : resource.description,
       updatedAt: new Date().toISOString(),
       // Preserve aggregates
       globalAverageRating: resource.globalAverageRating,
       globalRatingCount: resource.globalRatingCount,
     };
 
-    const { resource: updatedResource } = await container.item(whiskeyId, whiskeyId).replace(updated);
+    const { resource: updatedResource } = await container
+      .item(whiskeyId, whiskeyId)
+      .replace(updated);
     return ok(updatedResource);
   } catch (error) {
     return handleError(error);
@@ -306,8 +313,8 @@ async function deleteCatalogWhiskey(
           .fetchAll();
 
         // Delete all ratings and the link concurrently
-        const deletePromises: Promise<any>[] = ratingsToDelete.map((rating: any) =>
-          ratingsContainer.item(rating.id, eventId).delete(),
+        const deletePromises: Promise<any>[] = ratingsToDelete.map(
+          (rating: any) => ratingsContainer.item(rating.id, eventId).delete(),
         );
         deletePromises.push(
           eventWhiskeysContainer.item(link.id, eventId).delete(),
@@ -353,14 +360,17 @@ async function getEventWhiskeys(
     // Query all links for this event
     const { resources: links } = await eventWhiskeysContainer.items
       .query({
-        query: 'SELECT * FROM c WHERE c.eventId = @eventId ORDER BY c.whiskeyId',
+        query:
+          'SELECT * FROM c WHERE c.eventId = @eventId ORDER BY c.whiskeyId',
         parameters: [{ name: '@eventId', value: eventId }],
       })
       .fetchAll();
 
     // Fetch all catalog whiskeys in parallel (avoids N sequential round-trips)
     const whiskeyReads = await Promise.all(
-      links.map((link: any) => whiskeysContainer.item(link.whiskeyId, link.whiskeyId).read()),
+      links.map((link: any) =>
+        whiskeysContainer.item(link.whiskeyId, link.whiskeyId).read(),
+      ),
     );
 
     const joined: JoinedWhiskey[] = [];
@@ -410,7 +420,11 @@ async function getEventWhiskeys(
 
       joined.forEach((w) => {
         const rating = ratingMap.get(w.id);
-        if (rating !== undefined && rating !== null && typeof rating === 'number') {
+        if (
+          rating !== undefined &&
+          rating !== null &&
+          typeof rating === 'number'
+        ) {
           w.userRating = rating;
         }
       });
@@ -457,7 +471,14 @@ async function addWhiskeyToEvent(
       }
 
       const newWhiskey = await insertCatalogWhiskey(
-        { name: body.name, distillery: body.distillery, region: body.region, age: body.age, abv: body.abv, description: body.description },
+        {
+          name: body.name,
+          distillery: body.distillery,
+          region: body.region,
+          age: body.age,
+          abv: body.abv,
+          description: body.description,
+        },
         profile.displayName,
         principal.userId,
       );

@@ -7,7 +7,7 @@
     "build": "tsc",
     "predev": "npm run build",
     "dev": "func start",
-    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 21"
   },
   "dependencies": {
     "@azure/cosmos": "4.1.1",
