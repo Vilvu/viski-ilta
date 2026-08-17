@@ -31,7 +31,7 @@ export default function WhiskeyDetailPage() {
   const deleteRating = useDeleteRating();
   const updateWhiskey = useUpdateWhiskey();
   const removeWhiskey = useRemoveWhiskeyFromEvent();
-  const [score, setScore] = useState<number>(0);
+  const [score, setScore] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -57,6 +57,7 @@ export default function WhiskeyDetailPage() {
 
   const handleRate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (score === null) return;
     await upsertRating.mutateAsync({
       eventId: eventId!,
       whiskeyId: whiskeyId!,
@@ -339,7 +340,7 @@ export default function WhiskeyDetailPage() {
               <div className={styles.scoreSelector}>
                 <label>{t('whiskeyDetail.scoreLabel')}</label>
                 <div className={styles.scoreButtons}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <button
                       key={n}
                       type="button"
@@ -373,7 +374,7 @@ export default function WhiskeyDetailPage() {
                 <button
                   type="submit"
                   className={styles.submitBtn}
-                  disabled={score === 0 || upsertRating.isPending}
+                  disabled={score === null || upsertRating.isPending}
                 >
                   {upsertRating.isPending
                     ? t('common.saving')

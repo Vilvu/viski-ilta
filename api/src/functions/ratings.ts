@@ -73,10 +73,15 @@ async function upsertMyRating(
       notes?: string;
     };
 
-    if (!body.score || body.score < 1 || body.score > 10) {
+    if (
+      typeof body.score !== 'number' ||
+      !Number.isFinite(body.score) ||
+      body.score < 0 ||
+      body.score > 10
+    ) {
       return {
         status: 400,
-        body: JSON.stringify({ error: 'score must be between 1 and 10' }),
+        body: JSON.stringify({ error: 'score must be between 0 and 10' }),
       };
     }
 

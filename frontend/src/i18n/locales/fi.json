@@ -91,7 +91,7 @@
     "editWhiskey": "Muokkaa viskiä",
     "deleteWhiskey": "Poista viski",
     "yourRating": "Oma arvostelu",
-    "scoreLabel": "Pisteet (1–10)",
+    "scoreLabel": "Pisteet (0–10)",
     "notesLabel": "Huomautukset (valinnainen)",
     "tastingNotesPlaceholder": "Makumuistiinpanot, vaikutelmat...",
     "submitRating": "Lähetä arvostelu",

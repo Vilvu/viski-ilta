@@ -91,7 +91,7 @@
     "editWhiskey": "Edit Whiskey",
     "deleteWhiskey": "Delete Whiskey",
     "yourRating": "Your Rating",
-    "scoreLabel": "Score (1–10)",
+    "scoreLabel": "Score (0–10)",
     "notesLabel": "Notes (optional)",
     "tastingNotesPlaceholder": "Tasting notes, impressions...",
     "submitRating": "Submit rating",
