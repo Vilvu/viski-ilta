@@ -6,6 +6,9 @@
     "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix api\"",
     "build": "npm run build --prefix frontend && npm run build --prefix api",
     "lint": "npm run lint --prefix frontend && npm run lint --prefix api",
+    "test": "npm --prefix api run test && npm --prefix frontend run test",
+    "test:coverage": "npm --prefix api run test:coverage && npm --prefix frontend run test:coverage",
+    "typecheck": "npm --prefix api run build && npm --prefix api run typecheck:test && npm --prefix frontend run typecheck && npm --prefix frontend run typecheck:test",
     "import-data": "cd scripts && npx tsx import-excel.ts"
   },
   "devDependencies": {

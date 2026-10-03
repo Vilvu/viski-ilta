@@ -8,6 +8,7 @@ Navigation hub for the WhiskyApp project documentation and planning artifacts.
 |----------|-------------|
 | [architecture.md](architecture.md) | System Architecture — tech stack, component design, Azure resources |
 | [deployment.md](deployment.md) | Deployment Guide — Azure setup, CI/CD, local dev, troubleshooting |
+| [adr/0001-unit-test-coverage.md](adr/0001-unit-test-coverage.md) | ADR — Unit test coverage strategy (Vitest, Cosmos test fake, MSW, thresholds) |
 
 ## Project Summary
 

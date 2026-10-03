@@ -31,7 +31,7 @@ function validateDisplayName(displayName: string): string | null {
 }
 
 // GET /api/users/me
-async function getMe(
+export async function getMe(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -51,7 +51,7 @@ async function getMe(
 }
 
 // PUT /api/users/me
-async function updateMe(
+export async function updateMe(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -79,7 +79,7 @@ async function updateMe(
       .patch([
         { op: 'set', path: '/displayName', value: displayName },
         { op: 'set', path: '/usernameConfirmed', value: true },
-        { op: 'set', path: '/updatedAt', value: now }
+        { op: 'set', path: '/updatedAt', value: now },
       ]);
 
     return ok({
@@ -94,7 +94,7 @@ async function updateMe(
 }
 
 // GET /api/users (admin-only)
-async function listUsers(
+export async function listUsers(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -119,7 +119,7 @@ async function listUsers(
 }
 
 // PUT /api/users/{id}/role (admin-only)
-async function setUserRole(
+export async function setUserRole(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -129,9 +129,7 @@ async function setUserRole(
     const body = (await req.json()) as { role?: string };
 
     if (!body.role || !ALLOWED_ROLES.includes(body.role as AppRole)) {
-      return badRequest(
-        `role must be one of: ${ALLOWED_ROLES.join(', ')}`,
-      );
+      return badRequest(`role must be one of: ${ALLOWED_ROLES.join(', ')}`);
     }
     const newRole = body.role as AppRole;
 
@@ -141,12 +139,12 @@ async function setUserRole(
     }
 
     const container = getContainer('users');
-    
+
     // For Cosmos DB, we'll use a loop with read-modify-write to handle the race condition
     // For the mock, we'll do a simple check since it doesn't support ETags
     const MAX_RETRIES = 5;
     let retryCount = 0;
-    
+
     while (retryCount < MAX_RETRIES) {
       const { resource: target, etag } = await container.item(id, id).read();
       if (!target) {
@@ -162,7 +160,7 @@ async function setUserRole(
             parameters: [{ name: '@role', value: 'admin' }],
           })
           .fetchAll();
-          
+
         // If this user is the last admin, prevent demotion
         if (admins.length <= 1) {
           return badRequest('Cannot remove the last remaining admin');
@@ -177,9 +175,13 @@ async function setUserRole(
 
       try {
         // Try to save with ETag-based optimistic concurrency (if supported)
-        const options = etag ? { accessCondition: { type: 'IfMatch', condition: etag } } : {};
-        const { resource: saved } = await container.item(id, id).replace(updated, options);
-        
+        const options = etag
+          ? { accessCondition: { type: 'IfMatch', condition: etag } }
+          : {};
+        const { resource: saved } = await container
+          .item(id, id)
+          .replace(updated, options);
+
         return ok({
           id: saved.id,
           email: saved.email,
@@ -204,9 +206,11 @@ async function setUserRole(
         throw error;
       }
     }
-    
+
     // If we exhausted retries, return an error
-    return handleError(new Error('Failed to update user role due to concurrent modifications'));
+    return handleError(
+      new Error('Failed to update user role due to concurrent modifications'),
+    );
   } catch (error: unknown) {
     return handleError(error);
   }
