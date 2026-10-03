@@ -72,7 +72,7 @@ export interface Rating {
   eventId: string;
   userId: string;
   userName: string;
-  score: number; // 1-10
+  score: number; // 0-10
   notes?: string;
   createdAt: string;
   updatedAt: string;

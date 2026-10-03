@@ -43,6 +43,21 @@ whisky-app/
 
 To use a real Cosmos DB instance instead, set `USE_COSMOS_MOCK` to `"false"` in `api/local.settings.json` and provide valid `COSMOS_ENDPOINT` and `COSMOS_KEY` values.
 
+### Testing
+
+Both packages use Vitest. From the repo root:
+
+```bash
+npm test              # run api tests, then frontend tests
+npm run test:coverage # same, with coverage thresholds enforced
+npm run typecheck     # typecheck production source and test files in both packages
+```
+
+Or per package: `npm test` / `npm run test:watch` / `npm run test:coverage` inside `api/` or `frontend/`. API tests
+live under `api/test/`; frontend tests are colocated with their source as `*.test.ts(x)`. See the Testing section in
+[claude.md](claude.md) for the mocking conventions (Cosmos fake, MSW handlers, provider wrapper). CI
+(`.github/workflows/ci.yml`) runs lint, typecheck, and coverage-gated tests for both packages on every PR.
+
 ### Deployment
 
 See the [Deployment Guide](docs/deployment.md) for comprehensive Azure setup, CI/CD configuration, and production deployment instructions.

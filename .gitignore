@@ -1,5 +1,6 @@
 node_modules/
 dist/
+coverage/
 .env
 .env.local
 .env.*.local
@@ -12,3 +13,4 @@ Thumbs.db
 local.settings.json
 
 data/
+plans/

@@ -153,7 +153,9 @@ export async function ensureUser(
       // Optimistic concurrency: only write if the doc hasn't changed since
       // we read it, so this lazy backfill can't clobber a concurrent
       // setUserRole (or another backfill) update. On conflict, retry.
-      const options = etag ? { accessCondition: { type: 'IfMatch', condition: etag } } : {};
+      const options = etag
+        ? { accessCondition: { type: 'IfMatch', condition: etag } }
+        : {};
       const { resource: saved } = await container
         .item(principal.userId, principal.userId)
         .replace(profile, options);
@@ -164,16 +166,16 @@ export async function ensureUser(
         (error.message && error.message.includes('Precondition Failed'))
       ) {
         retryCount++;
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.random() * 50),
-        );
+        await new Promise((resolve) => setTimeout(resolve, Math.random() * 50));
         continue;
       }
       throw error;
     }
   }
 
-  throw new Error('Failed to ensure user document due to concurrent modifications');
+  throw new Error(
+    'Failed to ensure user document due to concurrent modifications',
+  );
 }
 
 /**

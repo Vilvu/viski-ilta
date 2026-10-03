@@ -5,11 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import {
-  requireTaster,
-  isAdmin,
-  getClientPrincipal,
-} from '../lib/auth';
+import { requireTaster, isAdmin, getClientPrincipal } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { recomputeGlobalAggregate } from '../lib/aggregates';
 import { v4 as uuidv4 } from 'uuid';
@@ -106,7 +102,7 @@ async function insertCatalogWhiskey(
  * List all catalog whiskeys ordered by global average rating.
  * Includes global aggregates; no event context.
  */
-async function getAllWhiskeys(
+export async function getAllWhiskeys(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -137,7 +133,7 @@ async function getAllWhiskeys(
  * POST /api/whiskeys
  * Create a new catalog whiskey (standalone, not linked to any event yet).
  */
-async function createCatalogWhiskey(
+export async function createCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -155,7 +151,14 @@ async function createCatalogWhiskey(
     }
 
     const whiskey = await insertCatalogWhiskey(
-      { name: body.name, distillery: body.distillery, region: body.region, age: body.age, abv: body.abv, description: body.description },
+      {
+        name: body.name,
+        distillery: body.distillery,
+        region: body.region,
+        age: body.age,
+        abv: body.abv,
+        description: body.description,
+      },
       profile.displayName,
       principal.userId,
     );
@@ -170,7 +173,7 @@ async function createCatalogWhiskey(
  * GET /api/whiskeys/{whiskeyId}
  * Retrieve a single catalog whiskey.
  */
-async function getCatalogWhiskey(
+export async function getCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -192,7 +195,7 @@ async function getCatalogWhiskey(
  * Update an existing catalog whiskey.
  * Requires creator-or-admin authorization.
  */
-async function updateCatalogWhiskey(
+export async function updateCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -228,14 +231,18 @@ async function updateCatalogWhiskey(
       age: body.age !== undefined ? body.age : resource.age,
       abv: body.abv !== undefined ? body.abv : resource.abv,
       description:
-        body.description !== undefined ? body.description : resource.description,
+        body.description !== undefined
+          ? body.description
+          : resource.description,
       updatedAt: new Date().toISOString(),
       // Preserve aggregates
       globalAverageRating: resource.globalAverageRating,
       globalRatingCount: resource.globalRatingCount,
     };
 
-    const { resource: updatedResource } = await container.item(whiskeyId, whiskeyId).replace(updated);
+    const { resource: updatedResource } = await container
+      .item(whiskeyId, whiskeyId)
+      .replace(updated);
     return ok(updatedResource);
   } catch (error) {
     return handleError(error);
@@ -248,7 +255,7 @@ async function updateCatalogWhiskey(
  * Requires creator-or-admin authorization.
  * Blocks deletion if whiskey is linked to any event (returns 409).
  */
-async function deleteCatalogWhiskey(
+export async function deleteCatalogWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -306,8 +313,8 @@ async function deleteCatalogWhiskey(
           .fetchAll();
 
         // Delete all ratings and the link concurrently
-        const deletePromises: Promise<any>[] = ratingsToDelete.map((rating: any) =>
-          ratingsContainer.item(rating.id, eventId).delete(),
+        const deletePromises: Promise<any>[] = ratingsToDelete.map(
+          (rating: any) => ratingsContainer.item(rating.id, eventId).delete(),
         );
         deletePromises.push(
           eventWhiskeysContainer.item(link.id, eventId).delete(),
@@ -322,7 +329,7 @@ async function deleteCatalogWhiskey(
         if (event && event.whiskeyCount > 0) {
           await eventsContainer
             .item(eventId, eventId)
-            .patch([{ op: 'increment', path: '/whiskeyCount', value: -1 }]);
+            .patch([{ op: 'incr', path: '/whiskeyCount', value: -1 }]);
         }
       }),
     );
@@ -340,7 +347,7 @@ async function deleteCatalogWhiskey(
  * List all whiskeys linked to an event with event-scoped aggregates.
  * If authenticated, includes user's rating for each whiskey.
  */
-async function getEventWhiskeys(
+export async function getEventWhiskeys(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -353,14 +360,17 @@ async function getEventWhiskeys(
     // Query all links for this event
     const { resources: links } = await eventWhiskeysContainer.items
       .query({
-        query: 'SELECT * FROM c WHERE c.eventId = @eventId ORDER BY c.whiskeyId',
+        query:
+          'SELECT * FROM c WHERE c.eventId = @eventId ORDER BY c.whiskeyId',
         parameters: [{ name: '@eventId', value: eventId }],
       })
       .fetchAll();
 
     // Fetch all catalog whiskeys in parallel (avoids N sequential round-trips)
     const whiskeyReads = await Promise.all(
-      links.map((link: any) => whiskeysContainer.item(link.whiskeyId, link.whiskeyId).read()),
+      links.map((link: any) =>
+        whiskeysContainer.item(link.whiskeyId, link.whiskeyId).read(),
+      ),
     );
 
     const joined: JoinedWhiskey[] = [];
@@ -410,7 +420,11 @@ async function getEventWhiskeys(
 
       joined.forEach((w) => {
         const rating = ratingMap.get(w.id);
-        if (rating !== undefined && rating !== null && typeof rating === 'number') {
+        if (
+          rating !== undefined &&
+          rating !== null &&
+          typeof rating === 'number'
+        ) {
           w.userRating = rating;
         }
       });
@@ -432,7 +446,7 @@ async function getEventWhiskeys(
  * - Link existing: body { whiskeyId }
  * - Create + link: body { name, distillery, region, ... } (creates catalog whiskey first)
  */
-async function addWhiskeyToEvent(
+export async function addWhiskeyToEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -457,7 +471,14 @@ async function addWhiskeyToEvent(
       }
 
       const newWhiskey = await insertCatalogWhiskey(
-        { name: body.name, distillery: body.distillery, region: body.region, age: body.age, abv: body.abv, description: body.description },
+        {
+          name: body.name,
+          distillery: body.distillery,
+          region: body.region,
+          age: body.age,
+          abv: body.abv,
+          description: body.description,
+        },
         profile.displayName,
         principal.userId,
       );
@@ -544,7 +565,7 @@ async function addWhiskeyToEvent(
  * GET /api/events/{eventId}/whiskeys/{whiskeyId}
  * Retrieve a single whiskey as it appears in an event (with event-scoped aggregates).
  */
-async function getEventWhiskey(
+export async function getEventWhiskey(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
@@ -627,7 +648,7 @@ async function getEventWhiskey(
  * Requires link creator-or-admin authorization.
  * Deletes associated ratings and recomputes aggregates.
  */
-async function removeWhiskeyFromEvent(
+export async function removeWhiskeyFromEvent(
   req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
