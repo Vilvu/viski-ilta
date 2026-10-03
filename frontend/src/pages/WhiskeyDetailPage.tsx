@@ -4,6 +4,7 @@ import {
   useWhiskey,
   useUpdateWhiskey,
   useRemoveWhiskeyFromEvent,
+  useUploadWhiskeyImage,
 } from '@/hooks/useWhiskeys';
 import { useEvent } from '@/hooks/useEvents';
 import {
@@ -14,6 +15,10 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import type { UpdateCatalogWhiskeyInput } from '@/api/whiskeys';
+import type { RecognizedWhiskey } from '@/types';
+import { mergeRecognized } from '@/lib/recognize';
+import WhiskeyImageField from '@/components/WhiskeyImageField';
+import WhiskeyPhoto from '@/components/WhiskeyPhoto';
 import styles from './WhiskeyDetailPage.module.css';
 
 export default function WhiskeyDetailPage() {
@@ -30,6 +35,8 @@ export default function WhiskeyDetailPage() {
   const upsertRating = useUpsertRating();
   const deleteRating = useDeleteRating();
   const updateWhiskey = useUpdateWhiskey();
+  const uploadImage = useUploadWhiskeyImage();
+  const [pendingImage, setPendingImage] = useState<Blob | null>(null);
   const removeWhiskey = useRemoveWhiskeyFromEvent();
   const [score, setScore] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
@@ -88,7 +95,14 @@ export default function WhiskeyDetailPage() {
       abv: whiskey.abv,
       description: whiskey.description,
     });
+    setPendingImage(null);
     setShowEditForm(true);
+  };
+
+  const handleRecognized = (result: RecognizedWhiskey): number => {
+    const merged = mergeRecognized(editForm, result);
+    setEditForm(merged.form);
+    return merged.filled;
   };
 
   const handleWhiskeyEditSubmit = async (e: React.FormEvent) => {
@@ -105,6 +119,14 @@ export default function WhiskeyDetailPage() {
         description: editForm.description,
       },
     });
+    if (pendingImage) {
+      try {
+        await uploadImage.mutateAsync({ whiskeyId, image: pendingImage });
+      } catch {
+        alert(t('whiskeyForm.uploadFailed'));
+      }
+    }
+    setPendingImage(null);
     setShowEditForm(false);
     setEditForm({
       name: '',
@@ -141,7 +163,8 @@ export default function WhiskeyDetailPage() {
       </div>
 
       <div className={styles.whiskeyHeader}>
-        <div>
+        <WhiskeyPhoto whiskey={whiskey} size="large" />
+        <div className={styles.headerInfo}>
           <h1>{whiskey.name}</h1>
           <p className={styles.meta}>
             {[
@@ -190,6 +213,12 @@ export default function WhiskeyDetailPage() {
       {showEditForm && (
         <form className={styles.form} onSubmit={handleWhiskeyEditSubmit}>
           <h2>{t('whiskeyDetail.editWhiskey')}</h2>
+          <WhiskeyImageField
+            whiskey={whiskey}
+            pendingImage={pendingImage}
+            onPendingImageChange={setPendingImage}
+            onRecognized={handleRecognized}
+          />
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label>Name *</label>
@@ -282,6 +311,7 @@ export default function WhiskeyDetailPage() {
               className={styles.cancelBtn}
               onClick={() => {
                 setShowEditForm(false);
+                setPendingImage(null);
                 setEditForm({
                   name: '',
                   distillery: '',
@@ -297,9 +327,9 @@ export default function WhiskeyDetailPage() {
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={updateWhiskey.isPending}
+              disabled={updateWhiskey.isPending || uploadImage.isPending}
             >
-              {updateWhiskey.isPending
+              {updateWhiskey.isPending || uploadImage.isPending
                 ? t('common.saving')
                 : t('common.saveChanges')}
             </button>

@@ -65,14 +65,15 @@ whisky-app/
 ├── api/               # Azure Functions
 │   ├── src/
 │   │   ├── functions/ # events.ts, ratings.ts, users.ts, whiskeys.ts, health.ts
-│   │   └── lib/       # cosmos.ts, cosmos.mock.ts, auth.ts, response.ts, aggregates.ts
+│   │   └── lib/       # cosmos.ts, cosmos.mock.ts, auth.ts, response.ts, aggregates.ts, blob.ts, ai.ts
 ├── docs/              # Architecture & deployment docs
 └── staticwebapp.config.json
 ```
 
 ### Data Model (Cosmos DB)
 - `events` (pk: `/id`) — Tasting events
-- `whiskeys` (pk: `/id`) — Catalog of whiskeys (global)
+- `whiskeys` (pk: `/id`) — Catalog of whiskeys (global); optional bottle photo fields `imageBlobName`,
+  `imageContentType`, `imageUpdatedAt` (photo bytes live in Blob Storage container `whiskey-images`)
 - `eventWhiskeys` (pk: `/eventId`) — Links whiskey to event with event-scoped aggregates
 - `ratings` (pk: `/eventId`) — User ratings per event/whiskey
 - `users` — App-managed user profiles with roles
@@ -80,6 +81,8 @@ whisky-app/
 ### API Routes
 - `GET/POST /api/events` — List/create events (admin only for POST)
 - `GET /api/whiskeys` — Catalog list by global average rating
+- `GET/PUT/DELETE /api/whiskeys/:whiskeyId/image` — Bottle photo (raw image body on PUT; creator/admin for writes)
+- `POST /api/whiskeys/recognize?lang=en|fi` — AI bottle recognition (Claude + scoped web search); 503 without `ANTHROPIC_API_KEY`
 - `GET/POST /api/events/:eventId/whiskeys` — Event whiskey links
 - `PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me` — User ratings
 - `GET/PUT /api/users/me` — User profile
@@ -93,12 +96,18 @@ whisky-app/
 ### Local Development Notes
 - Vite proxies `/api` to `http://localhost:7071`
 - Set `USE_COSMOS_MOCK=true` in `api/local.settings.json` for mock DB (seeds admin user `id: 'admin'`)
+- Set `USE_BLOB_MOCK=true` for in-memory photo storage; otherwise `BLOB_STORAGE_CONNECTION_STRING` is required
+- `ANTHROPIC_API_KEY` is optional; without it AI recognition returns 503 and the UI says it is not configured
 - SWA auth doesn't work locally; use SWA CLI or mock `x-ms-client-principal` header
 
 ### Key Files
 - `api/src/lib/cosmos.ts` — Cosmos DB connection (switches to mock via env var)
 - `api/src/lib/cosmos.mock.ts` — In-memory mock with seeded data
 - `api/src/lib/auth.ts` — Client principal parsing, role checking
+- `api/src/lib/blob.ts` — Bottle photo storage seam (Azure Blob Storage, or in-memory via `USE_BLOB_MOCK`)
+- `api/src/lib/ai.ts` — AI bottle recognition (Claude vision, web search limited to whisky reference sites)
+- `frontend/src/components/WhiskeyImageField.tsx` — Photo picker + "Recognize with AI" used by add/edit forms;
+  `frontend/src/lib/image.ts` downscales photos client-side, `frontend/src/lib/recognize.ts` fills only empty fields
 - `staticwebapp.config.json` — SWA routing, navigation fallback, security headers
 - `frontend/src/App.tsx` — Application routes with ProtectedRoute/AdminRoute guards
 
@@ -124,9 +133,12 @@ pull request and on push to `main`/`dev`. It does not touch the Azure Static Web
 - `api/test/helpers/request.ts` provides `makeRequest`/`makeContext`/`makePrincipal`/`readJson` stubs for calling
   exported handler functions directly (every handler in `events.ts`/`ratings.ts`/`users.ts`/`whiskeys.ts`/`health.ts`
   is exported for this purpose; `app.http(...)` registrations are unchanged).
+- Photo storage is mocked the same way: `vi.mock('../../src/lib/blob', () => ({ getBlobStore: () => fakeBlob }))`
+  with `fakeBlob` from `api/test/helpers/mockBlob.ts` (call `fakeBlob.reset()` in `beforeEach`). `makeRequest`
+  accepts `rawBody` for image uploads. `api/test/lib/ai.test.ts` mocks `@anthropic-ai/sdk`; never call the real API.
 
 ### Frontend (`frontend/src/**/*.test.{ts,tsx}`, colocated with source)
-- `frontend/src/test/setup.ts` wires up `@testing-library/jest-dom`, an MSW `server` lifecycle
+- `frontend/src/test/setup.ts` polyfills `Blob.prototype.stream` (jsdom lacks it; MSW needs it for photo uploads) and wires up `@testing-library/jest-dom`, an MSW `server` lifecycle
   (`onUnhandledRequest: 'error'` — an unstubbed request fails the test instead of hanging), RTL `cleanup()`, and a
   `matchMedia` polyfill (jsdom doesn't implement it; `Layout.tsx` uses it for the mobile nav).
 - `frontend/src/test/handlers.ts` has the default (anonymous/empty) MSW handlers; override per test with

@@ -33,6 +33,7 @@ export interface CatalogWhiskey {
   updatedAt: string;
   globalAverageRating: number;
   globalRatingCount: number;
+  imageUpdatedAt?: string; // set when the whiskey has a bottle photo
 }
 
 // Whiskey as linked to an event (joined with event-scoped aggregates)
@@ -52,6 +53,18 @@ export interface EventWhiskey {
   averageRating: number; // event-scoped
   ratingCount: number; // event-scoped
   userRating?: number;
+  imageUpdatedAt?: string; // set when the whiskey has a bottle photo
+}
+
+// AI bottle recognition result; null means "not determined"
+export interface RecognizedWhiskey {
+  name: string | null;
+  distillery: string | null;
+  region: string | null;
+  age: number | null;
+  abv: number | null;
+  description: string | null;
+  sources: string[];
 }
 
 // App-managed role, sourced from the Cosmos `users` document (DB role).

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useAllWhiskeys } from '@/hooks/useWhiskeys';
 import { useAuth } from '@/hooks/useAuth';
+import WhiskeyPhoto from '@/components/WhiskeyPhoto';
 
 import styles from './RankingPage.module.css';
 
@@ -52,6 +53,7 @@ export default function RankingPage() {
                   <div className={styles.rankNumber}>
                     {pageIndex * PAGE_SIZE + index + 1}
                   </div>
+                  <WhiskeyPhoto whiskey={whiskey} />
                   <div className={styles.whiskeyInfo}>
                     <h3>{whiskey.name}</h3>
                     <p className={styles.whiskeyMeta}>

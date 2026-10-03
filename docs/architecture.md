@@ -36,6 +36,12 @@ WhiskyApp follows a **serverless, JAMstack-inspired architecture** on Azure, opt
 │  │     └── ratings container        │                           │
 │  └──────────────────────────────────┘                           │
 │                                                                 │
+│  ┌──────────────────────────────────┐  ┌──────────────────────┐ │
+│  │   Azure Blob Storage             │  │  Anthropic Claude API │ │
+│  │   - whiskey-images (private)     │  │  - optional, bottle  │ │
+│  │   - bottle photos                │  │    recognition       │ │
+│  └──────────────────────────────────┘  └──────────────────────┘ │
+│                                                                 │
 │  ┌──────────────────────────────────┐                           │
 │  │   Microsoft Entra ID             │                           │
 │  │   - Pre-configured SWA Auth      │                           │
@@ -235,6 +241,8 @@ api/
 │   │   │                    GET/PUT/DELETE /api/events/:eventId
 │   │   ├── whiskeys.ts    — GET/POST /api/whiskeys (catalog)
 │   │   │                    GET/PATCH/DELETE /api/whiskeys/:whiskeyId
+│   │   │                    GET/PUT/DELETE /api/whiskeys/:whiskeyId/image (bottle photo)
+│   │   │                    POST /api/whiskeys/recognize (AI bottle recognition)
 │   │   │                    GET/POST /api/events/:eventId/whiskeys (event links)
 │   │   │                    GET/DELETE /api/events/:eventId/whiskeys/:whiskeyId
 │   │   ├── ratings.ts     — GET /api/events/:eventId/whiskeys/:whiskeyId/ratings
@@ -248,6 +256,8 @@ api/
 │       ├── auth.ts        — getClientPrincipal, ensureUser, getUserRole (DB-backed),
 │       │                    requireTaster/requireAdmin (async, DB role), getUserDisplayName
 │       ├── response.ts    — ok, created, noContent, notFound, handleError helpers
+│       ├── blob.ts        — getBlobStore() — Azure Blob Storage or in-memory (USE_BLOB_MOCK)
+│       ├── ai.ts          — recognizeWhiskey() — Claude vision + scoped web search
 │       └── aggregates.ts  — recomputeEventAggregate, recomputeGlobalAggregate
 ├── host.json
 ├── local.settings.json
@@ -320,7 +330,11 @@ flowchart LR
 | `POST` | `/api/whiskeys` | Required | Taster | Create catalog whiskey |
 | `GET` | `/api/whiskeys/:whiskeyId` | None | All | Get single catalog whiskey |
 | `PATCH` | `/api/whiskeys/:whiskeyId` | Required | Taster | Update catalog whiskey (creator/admin) |
-| `DELETE` | `/api/whiskeys/:whiskeyId` | Required | Taster | Delete catalog whiskey (creator/admin; 409 if linked) |
+| `DELETE` | `/api/whiskeys/:whiskeyId` | Required | Taster | Delete catalog whiskey (creator/admin; also deletes its photo) |
+| `GET` | `/api/whiskeys/:whiskeyId/image` | None | All | Bottle photo bytes (immutable cache, `?v=` cache-buster) |
+| `PUT` | `/api/whiskeys/:whiskeyId/image` | Required | Taster | Upload/replace bottle photo — raw JPEG/PNG/WebP body, max 5 MB (creator/admin) |
+| `DELETE` | `/api/whiskeys/:whiskeyId/image` | Required | Taster | Remove bottle photo (creator/admin) |
+| `POST` | `/api/whiskeys/recognize?lang=en\|fi` | Required | Taster | AI bottle recognition from a raw image body; returns suggested fields, stores nothing (503 if not configured) |
 
 **Event ↔ whiskey links**
 
@@ -402,6 +416,8 @@ rg-whiskyapp-dev
 │   ├── Frontend hosting     — React SPA
 │   ├── Managed Functions    — API endpoints
 │   └── Built-in Auth        — Microsoft Entra ID
+├── Azure Storage Account    — stwhiskyapp…dev
+│   └── Blob container: whiskey-images (private, bottle photos)
 └── Azure Cosmos DB Account  — cosmos-whiskyapp-dev
     └── Database: whiskyapp
         ├── Container: events         (pk: /id)
@@ -416,6 +432,8 @@ rg-whiskyapp-dev
 |----------|------|----------------|
 | Azure Static Web Apps | Free | $0 |
 | Azure Cosmos DB | Serverless | $0–2/month at MVP traffic |
+| Azure Blob Storage | Standard LRS, Hot | Cents per month for photos |
+| Anthropic Claude API | Pay per use, optional | A few cents per AI recognition |
 | **Total** | | **$0–2/month** |
 
 ### 7.3 Environment Strategy
@@ -485,7 +503,7 @@ WhiskyApp/
 
 These are not part of the MVP but inform architectural decisions:
 
-- **Image Storage**: Azure Blob Storage for whiskey bottle images — add when needed
+- **Image Storage**: Implemented — bottle photos in Azure Blob Storage, see [ADR 0002](adr/0002-bottle-photos-and-ai-recognition.md)
 - **Search**: Azure Cognitive Search for whiskey discovery — add when catalog grows
 - **Caching**: Azure CDN or Redis Cache — add when traffic justifies it
 - **Monitoring**: Azure Application Insights — add for production readiness

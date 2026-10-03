@@ -15,6 +15,9 @@ import {
   useCatalogWhiskey,
   useCreateCatalogWhiskey,
   useDeleteCatalogWhiskey,
+  useUploadWhiskeyImage,
+  useDeleteWhiskeyImage,
+  useRecognizeWhiskey,
 } from './useWhiskeys';
 
 function makeWrapper() {
@@ -191,5 +194,53 @@ describe('useDeleteCatalogWhiskey', () => {
       queryKey: ['whiskeys', 'ranking'],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['whiskeys'] });
+  });
+});
+
+describe('bottle photo hooks', () => {
+  it('useUploadWhiskeyImage invalidates all whiskeys queries', async () => {
+    server.use(
+      http.put('/api/whiskeys/w1/image', () =>
+        HttpResponse.json({ data: CATALOG_WHISKEY }),
+      ),
+    );
+    const { wrapper, invalidateSpy } = makeWrapper();
+    const { result } = renderHook(() => useUploadWhiskeyImage(), { wrapper });
+    result.current.mutate({
+      whiskeyId: 'w1',
+      image: new Blob(['x'], { type: 'image/jpeg' }),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['whiskeys'] });
+  });
+
+  it('useDeleteWhiskeyImage invalidates all whiskeys queries', async () => {
+    server.use(
+      http.delete(
+        '/api/whiskeys/w1/image',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    const { wrapper, invalidateSpy } = makeWrapper();
+    const { result } = renderHook(() => useDeleteWhiskeyImage(), { wrapper });
+    result.current.mutate('w1');
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['whiskeys'] });
+  });
+
+  it('useRecognizeWhiskey returns the recognition result', async () => {
+    server.use(
+      http.post('/api/whiskeys/recognize', () =>
+        HttpResponse.json({ data: { name: 'Oban 14', sources: [] } }),
+      ),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useRecognizeWhiskey(), { wrapper });
+    result.current.mutate({
+      image: new Blob(['x'], { type: 'image/jpeg' }),
+      language: 'en',
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.name).toBe('Oban 14');
   });
 });

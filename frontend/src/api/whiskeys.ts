@@ -1,5 +1,25 @@
-import { apiClient } from './client';
-import type { CatalogWhiskey, EventWhiskey, ApiResponse } from '@/types';
+import { apiClient, baseURL } from './client';
+import type {
+  CatalogWhiskey,
+  EventWhiskey,
+  ApiResponse,
+  RecognizedWhiskey,
+} from '@/types';
+
+export type RecognitionLanguage = 'en' | 'fi';
+
+/**
+ * URL of a whiskey's bottle photo, or undefined when it has none. The
+ * imageUpdatedAt cache-buster changes on every upload, which lets the API
+ * serve the image as immutable.
+ */
+export function whiskeyImageUrl(whiskey: {
+  id: string;
+  imageUpdatedAt?: string;
+}): string | undefined {
+  if (!whiskey.imageUpdatedAt) return undefined;
+  return `${baseURL}/whiskeys/${encodeURIComponent(whiskey.id)}/image?v=${encodeURIComponent(whiskey.imageUpdatedAt)}`;
+}
 
 // Input types for create/update operations
 export interface CreateCatalogWhiskeyInput {
@@ -91,6 +111,46 @@ export const catalogWhiskeysApi = {
    */
   delete: async (whiskeyId: string): Promise<void> => {
     await apiClient.delete(`/whiskeys/${whiskeyId}`);
+  },
+
+  /**
+   * PUT /api/whiskeys/{whiskeyId}/image
+   * Upload or replace the bottle photo (raw image body).
+   */
+  uploadImage: async (
+    whiskeyId: string,
+    image: Blob,
+  ): Promise<CatalogWhiskey> => {
+    const response = await apiClient.put<ApiResponse<CatalogWhiskey>>(
+      `/whiskeys/${whiskeyId}/image`,
+      image,
+      { headers: { 'Content-Type': image.type || 'image/jpeg' } },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * DELETE /api/whiskeys/{whiskeyId}/image
+   * Remove the bottle photo.
+   */
+  deleteImage: async (whiskeyId: string): Promise<void> => {
+    await apiClient.delete(`/whiskeys/${whiskeyId}/image`);
+  },
+
+  /**
+   * POST /api/whiskeys/recognize?lang=
+   * Ask the AI to read a bottle photo. Nothing is stored.
+   */
+  recognize: async (
+    image: Blob,
+    language: RecognitionLanguage,
+  ): Promise<RecognizedWhiskey> => {
+    const response = await apiClient.post<ApiResponse<RecognizedWhiskey>>(
+      `/whiskeys/recognize?lang=${language}`,
+      image,
+      { headers: { 'Content-Type': image.type || 'image/jpeg' } },
+    );
+    return response.data.data;
   },
 };
 

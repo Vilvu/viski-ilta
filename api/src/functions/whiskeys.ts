@@ -6,8 +6,24 @@ import {
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
 import { requireTaster, isAdmin, getClientPrincipal } from '../lib/auth';
-import { ok, created, noContent, notFound, handleError } from '../lib/response';
+import {
+  ok,
+  created,
+  noContent,
+  notFound,
+  badRequest,
+  payloadTooLarge,
+  serviceUnavailable,
+  handleError,
+} from '../lib/response';
 import { recomputeGlobalAggregate } from '../lib/aggregates';
+import { getBlobStore } from '../lib/blob';
+import {
+  isAiRecognitionEnabled,
+  recognizeWhiskey,
+  type RecognitionLanguage,
+  type RecognitionMediaType,
+} from '../lib/ai';
 import { v4 as uuidv4 } from 'uuid';
 
 // Catalog whiskey document (partition key: /id)
@@ -25,6 +41,10 @@ interface WhiskeyDocument {
   updatedAt: string;
   globalAverageRating: number;
   globalRatingCount: number;
+  // Bottle photo (stored in Blob Storage; served via GET /whiskeys/{id}/image)
+  imageBlobName?: string;
+  imageContentType?: string;
+  imageUpdatedAt?: string;
 }
 
 // Event ↔ whiskey link document (partition key: /eventId)
@@ -56,6 +76,65 @@ interface JoinedWhiskey {
   averageRating: number;
   ratingCount: number;
   userRating?: number;
+  imageUpdatedAt?: string;
+}
+
+const ALLOWED_IMAGE_TYPES: readonly RecognitionMediaType[] = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+type ImageReadResult =
+  | { ok: true; data: Buffer; contentType: RecognitionMediaType }
+  | { ok: false; response: HttpResponseInit };
+
+/**
+ * Reads and validates a raw image request body: Content-Type must be one of
+ * ALLOWED_IMAGE_TYPES and the body must be non-empty and <= MAX_IMAGE_BYTES.
+ */
+async function readImageBody(req: HttpRequest): Promise<ImageReadResult> {
+  const contentType = (req.headers.get('content-type') ?? '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase() as RecognitionMediaType;
+  if (!ALLOWED_IMAGE_TYPES.includes(contentType)) {
+    return {
+      ok: false,
+      response: badRequest('Image must be JPEG, PNG or WebP'),
+    };
+  }
+
+  const declaredLength = Number(req.headers.get('content-length') ?? '0');
+  if (declaredLength > MAX_IMAGE_BYTES) {
+    return { ok: false, response: payloadTooLarge('Image exceeds 5 MB') };
+  }
+
+  const data = Buffer.from(await req.arrayBuffer());
+  if (data.length === 0) {
+    return { ok: false, response: badRequest('Image body is empty') };
+  }
+  if (data.length > MAX_IMAGE_BYTES) {
+    return { ok: false, response: payloadTooLarge('Image exceeds 5 MB') };
+  }
+  return { ok: true, data, contentType };
+}
+
+const IMAGE_EXTENSIONS: Record<RecognitionMediaType, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+/** Best-effort blob delete: a leftover blob must never fail the request. */
+async function deleteBlobQuietly(name: string | undefined): Promise<void> {
+  if (!name) return;
+  try {
+    await getBlobStore().delete(name);
+  } catch (error) {
+    console.error(`Failed to delete blob ${name}:`, error);
+  }
 }
 
 /**
@@ -114,7 +193,7 @@ export async function getAllWhiskeys(
 
     const container = getContainer('whiskeys');
     const querySpec = {
-      query: `SELECT c.id, c.name, c.distillery, c.region, c.age, c.abv, c.globalAverageRating, c.globalRatingCount FROM c ORDER BY c.globalAverageRating DESC OFFSET @skip LIMIT @top`,
+      query: `SELECT c.id, c.name, c.distillery, c.region, c.age, c.abv, c.globalAverageRating, c.globalRatingCount, c.imageUpdatedAt FROM c ORDER BY c.globalAverageRating DESC OFFSET @skip LIMIT @top`,
       parameters: [
         { name: '@skip', value: skip },
         { name: '@top', value: top },
@@ -335,8 +414,187 @@ export async function deleteCatalogWhiskey(
     );
 
     await container.item(whiskeyId, whiskeyId).delete();
+    await deleteBlobQuietly(resource.imageBlobName);
 
     return noContent();
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+type EditableWhiskeyResult =
+  | { ok: true; whiskey: WhiskeyDocument }
+  | { ok: false; response: HttpResponseInit };
+
+/**
+ * Loads a catalog whiskey and applies the creator-or-admin guard used by
+ * every whiskey mutation.
+ */
+async function loadEditableWhiskey(
+  req: HttpRequest,
+  action: string,
+): Promise<EditableWhiskeyResult> {
+  const { principal } = await requireTaster(req);
+  const { whiskeyId } = req.params;
+  const { resource } = await getContainer('whiskeys')
+    .item(whiskeyId, whiskeyId)
+    .read();
+
+  if (!resource) return { ok: false, response: notFound('Whiskey not found') };
+
+  if (
+    !(await isAdmin(principal)) &&
+    resource.createdByUserId !== principal.userId
+  ) {
+    return {
+      ok: false,
+      response: {
+        status: 403,
+        body: JSON.stringify({
+          error: `Only the creator or admin can ${action}`,
+        }),
+      },
+    };
+  }
+  return { ok: true, whiskey: resource as WhiskeyDocument };
+}
+
+/**
+ * PUT /api/whiskeys/{whiskeyId}/image
+ * Upload or replace the bottle photo. Raw image body (JPEG/PNG/WebP, <= 5 MB).
+ * Requires creator-or-admin authorization.
+ */
+export async function uploadWhiskeyImage(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const loaded = await loadEditableWhiskey(req, 'change this photo');
+    if (!loaded.ok) return loaded.response;
+    const { whiskey } = loaded;
+
+    const image = await readImageBody(req);
+    if (!image.ok) return image.response;
+
+    // A fresh blob name per upload keeps the immutable image URL cache-safe.
+    const blobName = `${whiskey.id}/${uuidv4()}.${IMAGE_EXTENSIONS[image.contentType]}`;
+    await getBlobStore().upload(blobName, image.data, image.contentType);
+
+    const now = new Date().toISOString();
+    const updated: WhiskeyDocument = {
+      ...whiskey,
+      imageBlobName: blobName,
+      imageContentType: image.contentType,
+      imageUpdatedAt: now,
+      updatedAt: now,
+    };
+    const { resource } = await getContainer('whiskeys')
+      .item(whiskey.id, whiskey.id)
+      .replace(updated);
+
+    await deleteBlobQuietly(whiskey.imageBlobName);
+
+    return ok(resource);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+/**
+ * DELETE /api/whiskeys/{whiskeyId}/image
+ * Remove the bottle photo. Requires creator-or-admin authorization.
+ */
+export async function deleteWhiskeyImage(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const loaded = await loadEditableWhiskey(req, 'remove this photo');
+    if (!loaded.ok) return loaded.response;
+    const { whiskey } = loaded;
+
+    if (!whiskey.imageBlobName) return notFound('Whiskey has no photo');
+
+    const updated: WhiskeyDocument = {
+      ...whiskey,
+      imageBlobName: undefined,
+      imageContentType: undefined,
+      imageUpdatedAt: undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    await getContainer('whiskeys')
+      .item(whiskey.id, whiskey.id)
+      .replace(updated);
+
+    await deleteBlobQuietly(whiskey.imageBlobName);
+
+    return noContent();
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+/**
+ * GET /api/whiskeys/{whiskeyId}/image
+ * Stream the bottle photo. Public, like the catalog itself. The URL carries
+ * a ?v=<imageUpdatedAt> cache-buster, so the response is cached as immutable.
+ */
+export async function getWhiskeyImage(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const { whiskeyId } = req.params;
+    const { resource } = await getContainer('whiskeys')
+      .item(whiskeyId, whiskeyId)
+      .read();
+    const whiskey = resource as WhiskeyDocument | undefined;
+
+    if (!whiskey?.imageBlobName) return notFound('Whiskey photo not found');
+
+    const data = await getBlobStore().download(whiskey.imageBlobName);
+    if (!data) return notFound('Whiskey photo not found');
+
+    return {
+      status: 200,
+      headers: {
+        'Content-Type': whiskey.imageContentType ?? 'image/jpeg',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+      body: data,
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+/**
+ * POST /api/whiskeys/recognize?lang=en|fi
+ * Recognize a bottle from a raw image body and return suggested field values.
+ * Nothing is stored. Requires taster role.
+ */
+export async function recognizeWhiskeyImage(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    await requireTaster(req);
+
+    if (!isAiRecognitionEnabled()) {
+      return serviceUnavailable('AI recognition is not configured');
+    }
+
+    const image = await readImageBody(req);
+    if (!image.ok) return image.response;
+
+    const language: RecognitionLanguage =
+      req.query.get('lang') === 'fi' ? 'fi' : 'en';
+    const result = await recognizeWhiskey(
+      image.data,
+      image.contentType,
+      language,
+    );
+    return ok(result);
   } catch (error) {
     return handleError(error);
   }
@@ -393,6 +651,7 @@ export async function getEventWhiskeys(
           updatedAt: whiskey.updatedAt,
           averageRating: link.averageRating, // event-scoped
           ratingCount: link.ratingCount,
+          imageUpdatedAt: whiskey.imageUpdatedAt,
         });
       }
     }
@@ -553,6 +812,7 @@ export async function addWhiskeyToEvent(
       updatedAt: catalogWhiskey.updatedAt,
       averageRating: 0,
       ratingCount: 0,
+      imageUpdatedAt: catalogWhiskey.imageUpdatedAt,
     };
 
     return created(joinedResponse);
@@ -614,6 +874,7 @@ export async function getEventWhiskey(
       updatedAt: whiskey.updatedAt,
       averageRating: link.averageRating,
       ratingCount: link.ratingCount,
+      imageUpdatedAt: whiskey.imageUpdatedAt,
     };
 
     // Attach user's rating if authenticated
@@ -762,6 +1023,36 @@ app.http('deleteCatalogWhiskey', {
   authLevel: 'anonymous',
   route: 'whiskeys/{whiskeyId}',
   handler: deleteCatalogWhiskey,
+});
+
+app.http('uploadWhiskeyImage', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'whiskeys/{whiskeyId}/image',
+  handler: uploadWhiskeyImage,
+});
+
+app.http('deleteWhiskeyImage', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'whiskeys/{whiskeyId}/image',
+  handler: deleteWhiskeyImage,
+});
+
+app.http('getWhiskeyImage', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'whiskeys/{whiskeyId}/image',
+  handler: getWhiskeyImage,
+});
+
+// POST only: no other POST route matches whiskeys/{segment}, so 'recognize'
+// cannot be mistaken for a whiskey id.
+app.http('recognizeWhiskeyImage', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'whiskeys/recognize',
+  handler: recognizeWhiskeyImage,
 });
 
 app.http('getEventWhiskeys', {

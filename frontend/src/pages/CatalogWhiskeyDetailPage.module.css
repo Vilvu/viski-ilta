@@ -19,6 +19,11 @@
   flex-wrap: wrap;
 }
 
+.headerInfo {
+  flex: 1;
+  min-width: 200px;
+}
+
 .headerActions {
   display: flex;
   gap: 0.5rem;

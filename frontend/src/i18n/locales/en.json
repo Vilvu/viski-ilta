@@ -158,5 +158,29 @@
       "taster": "Taster",
       "admin": "Admin"
     }
+  },
+  "whiskeyForm": {
+    "photo": "Bottle photo",
+    "noPhoto": "No photo",
+    "choosePhoto": "Add photo",
+    "changePhoto": "Change photo",
+    "clearPhoto": "Discard new photo",
+    "removePhoto": "Remove photo",
+    "removingPhoto": "Removing...",
+    "confirmRemovePhoto": "Remove the bottle photo?",
+    "photoAlt": "Bottle of {{name}}",
+    "pendingPhotoAlt": "Selected bottle photo",
+    "recognize": "Recognize with AI",
+    "recognizing": "Recognizing...",
+    "recognizeHint": "AI reads the label and looks up missing details. Only empty fields are filled.",
+    "recognizedFilled_one": "Filled {{count}} field. Check the values before saving.",
+    "recognizedFilled_other": "Filled {{count}} fields. Check the values before saving.",
+    "recognizedNothing": "No new information found for the empty fields.",
+    "aiUnavailable": "AI recognition is not configured on this server.",
+    "aiBusy": "AI recognition is busy. Try again in a moment.",
+    "aiFailed": "AI recognition failed. Try again or fill the fields manually.",
+    "invalidImage": "This file is not a supported image.",
+    "uploadFailed": "The whiskey was saved, but the photo upload failed.",
+    "removeFailed": "Removing the photo failed."
   }
 }

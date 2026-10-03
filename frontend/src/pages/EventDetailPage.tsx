@@ -2,11 +2,19 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEvent } from '@/hooks/useEvents';
-import { useWhiskeys, useAddWhiskeyToEvent } from '@/hooks/useWhiskeys';
+import {
+  useWhiskeys,
+  useAddWhiskeyToEvent,
+  useUploadWhiskeyImage,
+} from '@/hooks/useWhiskeys';
 import { useUpdateEvent, useDeleteEvent } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import type { CreateCatalogWhiskeyInput } from '@/api/whiskeys';
 import type { UpdateEventInput } from '@/api/events';
+import type { RecognizedWhiskey } from '@/types';
+import { mergeRecognized } from '@/lib/recognize';
+import WhiskeyImageField from '@/components/WhiskeyImageField';
+import WhiskeyPhoto from '@/components/WhiskeyPhoto';
 import styles from './EventDetailPage.module.css';
 
 export default function EventDetailPage() {
@@ -17,6 +25,8 @@ export default function EventDetailPage() {
   const { data: whiskeys, isLoading: whiskeysLoading } = useWhiskeys(eventId!);
   const { isAdmin, isTaster, user } = useAuth();
   const addWhiskey = useAddWhiskeyToEvent();
+  const uploadImage = useUploadWhiskeyImage();
+  const [pendingImage, setPendingImage] = useState<Blob | null>(null);
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
   const [showForm, setShowForm] = useState(false);
@@ -43,7 +53,21 @@ export default function EventDetailPage() {
       distillery: form.distillery || undefined,
       region: form.region || undefined,
     };
-    await addWhiskey.mutateAsync({ eventId: eventId!, input: submitData });
+    const created = await addWhiskey.mutateAsync({
+      eventId: eventId!,
+      input: submitData,
+    });
+    if (pendingImage) {
+      try {
+        await uploadImage.mutateAsync({
+          whiskeyId: created.id,
+          image: pendingImage,
+        });
+      } catch {
+        alert(t('whiskeyForm.uploadFailed'));
+      }
+    }
+    setPendingImage(null);
     setForm({
       name: '',
       distillery: '',
@@ -53,6 +77,12 @@ export default function EventDetailPage() {
       description: '',
     });
     setShowForm(false);
+  };
+
+  const handleRecognized = (result: RecognizedWhiskey): number => {
+    const merged = mergeRecognized(form, result);
+    setForm(merged.form);
+    return merged.filled;
   };
 
   const canEditEvent = (): boolean => {
@@ -150,7 +180,10 @@ export default function EventDetailPage() {
           {isTaster && (
             <button
               className={styles.addBtn}
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => {
+                setShowForm(!showForm);
+                setPendingImage(null);
+              }}
             >
               {showForm ? t('common.cancel') : t('eventDetail.addWhiskey')}
             </button>
@@ -161,6 +194,11 @@ export default function EventDetailPage() {
       {showForm && (
         <form className={styles.form} onSubmit={handleSubmit}>
           <h2>{t('eventDetail.addWhiskey')}</h2>
+          <WhiskeyImageField
+            pendingImage={pendingImage}
+            onPendingImageChange={setPendingImage}
+            onRecognized={handleRecognized}
+          />
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label>{t('eventDetail.formLabels.name')} *</label>
@@ -245,9 +283,9 @@ export default function EventDetailPage() {
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={addWhiskey.isPending}
+              disabled={addWhiskey.isPending || uploadImage.isPending}
             >
-              {addWhiskey.isPending
+              {addWhiskey.isPending || uploadImage.isPending
                 ? t('common.adding')
                 : t('eventDetail.addWhiskey')}
             </button>
@@ -355,18 +393,21 @@ export default function EventDetailPage() {
                   to={`/events/${eventId}/whiskeys/${whiskey.id}`}
                   className={styles.whiskeyLink}
                 >
-                  <div className={styles.whiskeyInfo}>
-                    <h3>{whiskey.name}</h3>
-                    <p className={styles.whiskeyMeta}>
-                      {[
-                        whiskey.distillery,
-                        whiskey.region,
-                        whiskey.age ? `${whiskey.age}yr` : null,
-                        whiskey.abv ? `${whiskey.abv}%` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
+                  <div className={styles.whiskeyMain}>
+                    <WhiskeyPhoto whiskey={whiskey} />
+                    <div className={styles.whiskeyInfo}>
+                      <h3>{whiskey.name}</h3>
+                      <p className={styles.whiskeyMeta}>
+                        {[
+                          whiskey.distillery,
+                          whiskey.region,
+                          whiskey.age ? `${whiskey.age}yr` : null,
+                          whiskey.abv ? `${whiskey.abv}%` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
                   </div>
                   <div className={styles.ratings}>
                     {whiskey.userRating !== undefined && (
@@ -395,18 +436,21 @@ export default function EventDetailPage() {
                 </Link>
               ) : (
                 <div className={styles.whiskeyLink}>
-                  <div className={styles.whiskeyInfo}>
-                    <h3>{whiskey.name}</h3>
-                    <p className={styles.whiskeyMeta}>
-                      {[
-                        whiskey.distillery,
-                        whiskey.region,
-                        whiskey.age ? `${whiskey.age}yr` : null,
-                        whiskey.abv ? `${whiskey.abv}%` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
+                  <div className={styles.whiskeyMain}>
+                    <WhiskeyPhoto whiskey={whiskey} />
+                    <div className={styles.whiskeyInfo}>
+                      <h3>{whiskey.name}</h3>
+                      <p className={styles.whiskeyMeta}>
+                        {[
+                          whiskey.distillery,
+                          whiskey.region,
+                          whiskey.age ? `${whiskey.age}yr` : null,
+                          whiskey.abv ? `${whiskey.abv}%` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
                   </div>
                   <div className={styles.ratings}>
                     {whiskey.userRating !== undefined && (

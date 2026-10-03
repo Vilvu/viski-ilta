@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/server';
-import { catalogWhiskeysApi, eventWhiskeysApi } from './whiskeys';
+import {
+  catalogWhiskeysApi,
+  eventWhiskeysApi,
+  whiskeyImageUrl,
+} from './whiskeys';
 
 const CATALOG_WHISKEY = {
   id: 'w1',
@@ -143,5 +147,65 @@ describe('eventWhiskeysApi', () => {
     );
     await eventWhiskeysApi.removeFromEvent('e1', 'w1');
     expect(called).toBe(true);
+  });
+});
+
+describe('bottle photo and recognition API', () => {
+  it('whiskeyImageUrl: undefined without a photo, cache-busted URL with one', () => {
+    expect(whiskeyImageUrl({ id: 'w1' })).toBeUndefined();
+    expect(
+      whiskeyImageUrl({ id: 'w1', imageUpdatedAt: '2026-01-01T00:00:00Z' }),
+    ).toBe('/api/whiskeys/w1/image?v=2026-01-01T00%3A00%3A00Z');
+  });
+
+  it('uploadImage: PUT raw bytes with the image content type', async () => {
+    let contentType: string | null = null;
+    let size = 0;
+    server.use(
+      http.put('/api/whiskeys/w1/image', async ({ request }) => {
+        contentType = request.headers.get('content-type');
+        size = (await request.arrayBuffer()).byteLength;
+        return HttpResponse.json({
+          data: { ...CATALOG_WHISKEY, imageUpdatedAt: 'now' },
+        });
+      }),
+    );
+    const result = await catalogWhiskeysApi.uploadImage(
+      'w1',
+      new Blob([new Uint8Array([1, 2, 3])], { type: 'image/jpeg' }),
+    );
+    expect(result.imageUpdatedAt).toBe('now');
+    expect(contentType).toBe('image/jpeg');
+    expect(size).toBe(3);
+  });
+
+  it('deleteImage: DELETE /whiskeys/:id/image', async () => {
+    let called = false;
+    server.use(
+      http.delete('/api/whiskeys/w1/image', () => {
+        called = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await catalogWhiskeysApi.deleteImage('w1');
+    expect(called).toBe(true);
+  });
+
+  it('recognize: POST image with language and returns the result', async () => {
+    let lang: string | null = null;
+    server.use(
+      http.post('/api/whiskeys/recognize', ({ request }) => {
+        lang = new URL(request.url).searchParams.get('lang');
+        return HttpResponse.json({
+          data: { name: 'Oban 14', sources: [] },
+        });
+      }),
+    );
+    const result = await catalogWhiskeysApi.recognize(
+      new Blob(['x'], { type: 'image/png' }),
+      'fi',
+    );
+    expect(result.name).toBe('Oban 14');
+    expect(lang).toBe('fi');
   });
 });

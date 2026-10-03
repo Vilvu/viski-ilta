@@ -54,6 +54,40 @@ export function notFound(message = 'Not found'): HttpResponseInit {
   };
 }
 
+export function payloadTooLarge(
+  message = 'Payload too large',
+): HttpResponseInit {
+  return errorResponse(413, 'Payload Too Large', message);
+}
+
+export function tooManyRequests(
+  message = 'Too many requests',
+): HttpResponseInit {
+  return errorResponse(429, 'Too Many Requests', message);
+}
+
+export function badGateway(message = 'Bad gateway'): HttpResponseInit {
+  return errorResponse(502, 'Bad Gateway', message);
+}
+
+export function serviceUnavailable(
+  message = 'Service unavailable',
+): HttpResponseInit {
+  return errorResponse(503, 'Service Unavailable', message);
+}
+
+function errorResponse(
+  status: number,
+  error: string,
+  message: string,
+): HttpResponseInit {
+  return {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ error, message, statusCode: status }),
+  };
+}
+
 export function serverError(
   message = 'Internal server error',
 ): HttpResponseInit {
@@ -75,6 +109,10 @@ export function handleError(error: unknown): HttpResponseInit {
     if (e.statusCode === 403) return forbidden(e.message);
     if (e.statusCode === 404) return notFound(e.message);
     if (e.statusCode === 400) return badRequest(e.message);
+    if (e.statusCode === 413) return payloadTooLarge(e.message);
+    if (e.statusCode === 429) return tooManyRequests(e.message);
+    if (e.statusCode === 502) return badGateway(e.message);
+    if (e.statusCode === 503) return serviceUnavailable(e.message);
   }
 
   console.error('Unhandled error:', error);

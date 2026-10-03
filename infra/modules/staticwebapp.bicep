@@ -6,6 +6,9 @@ param cosmosEndpoint string
 @secure()
 param cosmosKey string
 param cosmosDatabase string
+param storageAccountName string
+@secure()
+param anthropicApiKey string
 
 resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
@@ -28,16 +31,31 @@ resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
   }
 }
 
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
+  name: storageAccountName
+}
+
+var blobConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+
+// ANTHROPIC_API_KEY is optional: without it the app runs and only the
+// "Recognize with AI" button reports that recognition is not configured.
+var aiSettings = empty(anthropicApiKey) ? {} : {
+  ANTHROPIC_API_KEY: anthropicApiKey
+}
+
 // Only deploy app settings when cosmosKey is provided.
 // Deploying with an empty key would silently overwrite a previously correct key.
+// Note: this resource replaces the full app settings set, so a deploy without
+// anthropicApiKey removes a previously configured ANTHROPIC_API_KEY.
 resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = if (!empty(cosmosKey)) {
   parent: swa
   name: 'appsettings'
-  properties: {
+  properties: union({
     COSMOS_ENDPOINT: cosmosEndpoint
     COSMOS_KEY: cosmosKey
     COSMOS_DATABASE: cosmosDatabase
-  }
+    BLOB_STORAGE_CONNECTION_STRING: blobConnectionString
+  }, aiSettings)
 }
 
 output swaDefaultHostname string = swa.properties.defaultHostname
