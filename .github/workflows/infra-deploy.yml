@@ -14,6 +14,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Secrets (AZURE_CREDENTIALS, COSMOS_KEY, ANTHROPIC_API_KEY) are environment-scoped;
+    # without this they resolve to empty strings.
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
