@@ -266,6 +266,27 @@ app-settings resource replaces all settings, so keep that secret populated whene
 
 > **Security Note**: Application settings are encrypted at rest and injected as environment variables into the Azure Functions runtime. They are not exposed to the frontend.
 
+### 2.5 Azure SignalR Service (Real-time Updates)
+
+The Bicep templates in `infra/` create a SignalR Service in **Serverless** mode (`infra/modules/signalr.bicep`) and write its connection string into the SWA app setting `AzureSignalRConnectionString`. To do it by hand:
+
+```bash
+az signalr create \
+  --name signalr-whiskyapp-123-dev \
+  --resource-group rg-whiskyapp-dev \
+  --sku Free_F1 \
+  --service-mode Serverless
+
+az staticwebapp appsettings set \
+  --name swa-whiskyapp-dev \
+  --setting-names AzureSignalRConnectionString="$(az signalr key list \
+    --name signalr-whiskyapp-123-dev --resource-group rg-whiskyapp-dev \
+    --query primaryConnectionString -o tsv)"
+```
+
+- **Free_F1 limits**: 20 concurrent connections and 20,000 messages a day. **Only one Free instance is allowed per subscription.** If dev and prod share a subscription, set `signalrSku = 'Standard_S1'` in one of the `.bicepparam` files.
+- Real-time is optional. Without the setting, the app works as before and only refreshes on refetch.
+
 ---
 
 ## 3. Sign-In Options
@@ -539,6 +560,18 @@ Edit `api/local.settings.json` with your Cosmos DB credentials:
 and provide `BLOB_STORAGE_CONNECTION_STRING` to use a real account (or Azurite with
 `UseDevelopmentStorage=true`). Set `ANTHROPIC_API_KEY` to try AI bottle recognition locally.
 
+#### Real-time Updates (Optional)
+
+Leave `AzureSignalRConnectionString` empty to run without real-time updates. To try them locally, either use the connection string of a dev SignalR instance, or run the local emulator:
+
+```bash
+dotnet tool install -g Microsoft.Azure.SignalR.Emulator
+asrs-emulator upstream init && asrs-emulator start
+# then set: "AzureSignalRConnectionString": "Endpoint=http://localhost;Port=8888;AccessKey=<key printed by the emulator>;Version=1.0;"
+```
+
+Open the app in two browsers signed in as different users. A rating saved in one should appear in the other without a reload.
+
 #### Frontend Configuration
 
 ```bash
@@ -650,6 +683,7 @@ cd ../api && npm run build     # Output: api/dist/
 | `ANTHROPIC_API_KEY` | No | — | Enables AI bottle recognition; without it the endpoint returns 503 | `sk-ant-...` |
 | `FUNCTIONS_WORKER_RUNTIME` | Yes | — | Azure Functions runtime (set automatically) | `node` |
 | `AzureWebJobsStorage` | Local only | — | Storage connection for local dev | `UseDevelopmentStorage=true` |
+| `AzureSignalRConnectionString` | No | — | Azure SignalR Service (Serverless) connection string. It enables real-time updates; unset means they're off | `Endpoint=https://x.service.signalr.net;AccessKey=...;Version=1.0;` |
 
 ### 7.2 Frontend Environment Variables (Vite)
 
@@ -681,6 +715,7 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
 | `COSMOS_DATABASE` | `whiskyapp` |
 | `BLOB_STORAGE_CONNECTION_STRING` | Storage account connection string (set by Bicep) |
 | `ANTHROPIC_API_KEY` | Optional — Anthropic API key for AI bottle recognition |
+| `AzureSignalRConnectionString` | SignalR primary connection string (set by Bicep) |
 
 ### 7.5 Where Each Variable Is Set
 

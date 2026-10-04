@@ -328,6 +328,23 @@ flowchart LR
     F -->|Subsequent requests include cookie| G["SWA adds x-ms-client-principal header"]
 ```
 
+### 4.5 Real-time Updates — Azure SignalR Service (Serverless)
+
+Other users' changes reach open browsers via Azure SignalR Service in **Serverless** mode. SWA managed functions only support HTTP triggers, so the API calls the SignalR **REST API** directly (`api/src/lib/realtime.ts`, HS256 JWTs signed with the access key) instead of using Functions SignalR bindings.
+
+```mermaid
+flowchart LR
+    A[Browser A] -->|PUT rating| B[Azure Function]
+    B -->|Write + recompute aggregates| C[Cosmos DB]
+    B -->|"POST /api/v1/hubs/whisky (ratingsChanged)"| D[Azure SignalR Service]
+    D -->|WebSocket push| E[Browser B]
+    E -->|invalidateQueries → refetch via REST| B
+```
+
+- **Negotiate**: `POST /api/negotiate` (signed-in users only) returns `{ url, accessToken }`. The `@microsoft/signalr` client then connects straight to the SignalR Service.
+- **Messages are invalidation hints only**, which carry ids and never data: `ratingsChanged`, `eventWhiskeysChanged`, `eventsChanged`, `catalogChanged`. `frontend/src/hooks/useRealtime.ts` maps each one to the TanStack Query keys the matching local mutation already invalidates. Clients then refetch through the normal authenticated REST API, so role checks still apply.
+- **Graceful degradation**: when `AzureSignalRConnectionString` is unset, broadcasts are no-ops and negotiate returns 503. The frontend silently falls back to regular fetching. A failed broadcast is logged and never fails the mutation.
+
 ---
 
 ## 5. API Design Overview
@@ -374,6 +391,12 @@ flowchart LR
 | `GET` | `/api/events/:eventId/whiskeys/:whiskeyId/ratings` | Required | Taster | List ratings for whiskey in this event |
 | `PUT` | `/api/events/:eventId/whiskeys/:whiskeyId/ratings/me` | Required | Taster | Upsert own rating |
 | `DELETE` | `/api/events/:eventId/whiskeys/:whiskeyId/ratings/me` | Required | Taster | Delete own rating |
+
+**Real-time**
+
+| Method | Path | Auth | Role | Description |
+|--------|------|------|------|-------------|
+| `POST` | `/api/negotiate` | Required | Any signed-in | SignalR connection info `{ url, accessToken }`; 503 if not configured |
 
 ### 5.2 API Conventions
 
@@ -451,6 +474,7 @@ rg-whiskyapp-dev
 │   └── Built-in Auth        — Microsoft Entra ID
 ├── Azure Storage Account    — stwhiskyapp…dev
 │   └── Blob container: whiskey-images (private, bottle photos)
+├── Azure SignalR Service    — signalr-whiskyapp-123-dev (Free_F1, Serverless)
 └── Azure Cosmos DB Account  — cosmos-whiskyapp-dev
     └── Database: whiskyapp
         ├── Container: events         (pk: /id)
@@ -469,6 +493,7 @@ rg-whiskyapp-dev
 | Azure Cosmos DB | Serverless | $0–2/month at MVP traffic |
 | Azure Blob Storage | Standard LRS, Hot | Cents per month for photos |
 | Anthropic Claude API | Pay per use, optional | A few cents per AI recognition |
+| Azure SignalR Service | Free_F1 (20 connections, 20k msgs/day) | $0 |
 | **Total** | | **$0–2/month** |
 
 ### 7.3 Environment Strategy

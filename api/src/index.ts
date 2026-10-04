@@ -8,3 +8,4 @@ import './functions/ratings';
 import './functions/users';
 import './functions/whiskeys';
 import './functions/health';
+import './functions/realtime';

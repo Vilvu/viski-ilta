@@ -24,6 +24,7 @@ import {
   type RecognitionLanguage,
   type RecognitionMediaType,
 } from '../lib/ai';
+import { broadcast } from '../lib/realtime';
 import { v4 as uuidv4 } from 'uuid';
 
 // Catalog whiskey document (partition key: /id)
@@ -242,6 +243,7 @@ export async function createCatalogWhiskey(
       principal.userId,
     );
 
+    await broadcast('catalogChanged', { whiskeyId: whiskey.id });
     return created(whiskey);
   } catch (error) {
     return handleError(error);
@@ -322,6 +324,7 @@ export async function updateCatalogWhiskey(
     const { resource: updatedResource } = await container
       .item(whiskeyId, whiskeyId)
       .replace(updated);
+    await broadcast('catalogChanged', { whiskeyId });
     return ok(updatedResource);
   } catch (error) {
     return handleError(error);
@@ -416,6 +419,7 @@ export async function deleteCatalogWhiskey(
     await container.item(whiskeyId, whiskeyId).delete();
     await deleteBlobQuietly(resource.imageBlobName);
 
+    await broadcast('catalogChanged', { whiskeyId });
     return noContent();
   } catch (error) {
     return handleError(error);
@@ -494,6 +498,7 @@ export async function uploadWhiskeyImage(
 
     await deleteBlobQuietly(whiskey.imageBlobName);
 
+    await broadcast('catalogChanged', { whiskeyId: whiskey.id });
     return ok(resource);
   } catch (error) {
     return handleError(error);
@@ -528,6 +533,7 @@ export async function deleteWhiskeyImage(
 
     await deleteBlobQuietly(whiskey.imageBlobName);
 
+    await broadcast('catalogChanged', { whiskeyId: whiskey.id });
     return noContent();
   } catch (error) {
     return handleError(error);
@@ -815,6 +821,7 @@ export async function addWhiskeyToEvent(
       imageUpdatedAt: catalogWhiskey.imageUpdatedAt,
     };
 
+    await broadcast('eventWhiskeysChanged', { eventId, whiskeyId });
     return created(joinedResponse);
   } catch (error) {
     return handleError(error);
@@ -983,6 +990,7 @@ export async function removeWhiskeyFromEvent(
     // Recompute global aggregate (since ratings for this whiskey were deleted)
     await recomputeGlobalAggregate(whiskeyId);
 
+    await broadcast('eventWhiskeysChanged', { eventId, whiskeyId });
     return noContent();
   } catch (error) {
     return handleError(error);

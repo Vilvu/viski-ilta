@@ -10,6 +10,7 @@ infra/
 ├── modules/
 │   ├── cosmosdb.bicep            # Cosmos DB account, DB, 4 containers
 │   ├── storage.bicep             # Storage account + private whiskey-images container (bottle photos)
+│   ├── signalr.bicep             # SignalR Service (Serverless, Free_F1) for real-time updates
 │   └── staticwebapp.bicep        # SWA resource + app settings
 ├── parameters/
 │   ├── dev.bicepparam
@@ -115,6 +116,11 @@ infra/
 The storage account for bottle photos needs no secret: `staticwebapp.bicep` reads its key and sets
 `BLOB_STORAGE_CONNECTION_STRING` in the SWA app settings. The `storageAccountName` in each parameter file must be
 globally unique (3–24 lowercase letters and digits).
+
+The SignalR Service for real-time updates needs no secret either: `staticwebapp.bicep` reads its connection string
+and sets `AzureSignalRConnectionString`. `signalrName` must be globally unique. The default `signalrSku` is
+`Free_F1`, and Azure allows only **one Free SignalR instance per subscription**. If dev and prod share a
+subscription, set `param signalrSku = 'Standard_S1'` in one parameter file.
 
 > **Note:** the SWA app settings resource replaces the whole settings set on every deploy. Always deploy with
 > both `cosmosKey` and `anthropicApiKey` (the Infra Deploy workflow does this), or a manual deploy without

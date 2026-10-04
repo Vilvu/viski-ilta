@@ -11,6 +11,7 @@ param storageAccountName string
 param anthropicApiKey string
 @secure()
 param authSessionSecret string
+param signalrName string
 
 resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
@@ -51,6 +52,10 @@ var authSettings = empty(authSessionSecret) ? {} : {
   AUTH_SESSION_SECRET: authSessionSecret
 }
 
+resource signalr 'Microsoft.SignalRService/signalR@2023-02-01' existing = {
+  name: signalrName
+}
+
 // Only deploy app settings when cosmosKey is provided.
 // Deploying with an empty key would silently overwrite a previously correct key.
 // Note: this resource replaces the full app settings set, so a deploy without
@@ -63,6 +68,7 @@ resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = if (!empty(
     COSMOS_KEY: cosmosKey
     COSMOS_DATABASE: cosmosDatabase
     BLOB_STORAGE_CONNECTION_STRING: blobConnectionString
+    AzureSignalRConnectionString: signalr.listKeys().primaryConnectionString
   }, aiSettings, authSettings)
 }
 

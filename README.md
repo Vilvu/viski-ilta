@@ -10,6 +10,7 @@ A web application for recording and tracking user whisky ratings from whisky tas
 - **Photos**: Azure Blob Storage (bottle photos, private container served through the API)
 - **AI**: Anthropic Claude API (optional bottle recognition)
 - **Auth**: Azure Static Web Apps built-in auth (Microsoft Entra ID) for sign-in only; authorization roles (`anonymous`/`taster`/`admin`) are app-managed in Cosmos DB — see [Deployment Guide § 4](docs/deployment.md#4-admin-role-assignment) for first-admin bootstrap
+- **Real-time**: Azure SignalR Service (Serverless, Free tier) pushes change notifications so open browsers refresh live. It's optional: see [Deployment Guide § 2.5](docs/deployment.md#25-azure-signalr-service-real-time-updates)
 - **Hosting**: Azure Static Web Apps
 
 ## Project Structure

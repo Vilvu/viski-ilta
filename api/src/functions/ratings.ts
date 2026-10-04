@@ -11,6 +11,7 @@ import {
   recomputeEventAggregate,
   recomputeGlobalAggregate,
 } from '../lib/aggregates';
+import { broadcast } from '../lib/realtime';
 import { v4 as uuidv4 } from 'uuid';
 
 interface RatingDocument {
@@ -132,6 +133,7 @@ export async function upsertMyRating(
     // Recompute event-scoped and global aggregates
     await recomputeEventAggregate(eventId, whiskeyId);
     await recomputeGlobalAggregate(whiskeyId);
+    await broadcast('ratingsChanged', { eventId, whiskeyId });
 
     return ok(rating);
   } catch (error) {
@@ -177,6 +179,7 @@ export async function deleteMyRating(
     // Recompute event-scoped and global aggregates
     await recomputeEventAggregate(eventId, whiskeyId);
     await recomputeGlobalAggregate(whiskeyId);
+    await broadcast('ratingsChanged', { eventId, whiskeyId });
 
     return noContent();
   } catch (error) {
