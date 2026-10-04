@@ -87,6 +87,8 @@ whisky-app/
 - `GET/POST /api/events/:eventId/whiskeys` — Event whiskey links
 - `PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me` — User ratings
 - `GET/PUT /api/users/me` — User profile
+- `GET /api/users`, `PUT /api/users/:id/role`, `DELETE /api/users/:id` — Admin user management. Removing a user
+  deletes their profile (and native credentials) but keeps their ratings and whiskeys; admins can't remove themselves
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` — Native accounts
 
 ### Auth & Roles

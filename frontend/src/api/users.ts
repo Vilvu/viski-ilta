@@ -27,6 +27,10 @@ export const usersApi = {
     return response.data.data;
   },
 
+  deleteUser: async (id: string): Promise<void> => {
+    await apiClient.delete(`/users/${encodeURIComponent(id)}`);
+  },
+
   setUserRole: async (id: string, role: AppRole): Promise<AdminUser> => {
     const response = await apiClient.put<ApiResponse<AdminUser>>(
       `/users/${id}/role`,

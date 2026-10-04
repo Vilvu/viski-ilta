@@ -229,3 +229,43 @@ describe('GET /api/auth/me', () => {
     });
   });
 });
+
+describe('removed native accounts', () => {
+  async function removeProfile(token: string) {
+    const claims = await verifySessionToken(token);
+    await fakeCosmos
+      .getContainer('users')
+      .item(claims!.userId, claims!.userId)
+      .delete();
+  }
+
+  it('GET /api/auth/me reports a removed account as signed out and clears the cookie', async () => {
+    const token = sessionToken(await registerUser());
+    await removeProfile(token);
+
+    const res = await getSession(
+      makeRequest({ cookies: { [SESSION_COOKIE]: token } }),
+      ctx,
+    );
+    expect(readJson(res).data).toEqual({ clientPrincipal: null });
+    expect(res.cookies).toEqual([
+      expect.objectContaining({ name: SESSION_COOKIE, value: '', maxAge: 0 }),
+    ]);
+  });
+
+  it('does not re-create the profile from a still-valid session', async () => {
+    const token = sessionToken(await registerUser());
+    await removeProfile(token);
+
+    const res = await getMe(
+      makeRequest({ cookies: { [SESSION_COOKIE]: token } }),
+      ctx,
+    );
+    expect(res.status).toBe(401);
+    const { resources } = await fakeCosmos
+      .getContainer('users')
+      .items.query('SELECT * FROM c')
+      .fetchAll();
+    expect(resources).toHaveLength(0);
+  });
+});

@@ -42,7 +42,6 @@ export default defineConfig({
         'src/pages/EventDetailPage.tsx',
         'src/pages/CatalogWhiskeyDetailPage.tsx',
         'src/pages/RankingPage.tsx',
-        'src/pages/UserManagementPage.tsx',
         'src/pages/NotFoundPage.tsx',
       ],
       thresholds: {

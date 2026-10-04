@@ -60,6 +60,18 @@ describe('usersApi', () => {
     expect(result).toHaveLength(1);
   });
 
+  it('deleteUser: DELETE /users/:id with the id URL-encoded', async () => {
+    let calledPath = '';
+    server.use(
+      http.delete('/api/users/:id', ({ request }) => {
+        calledPath = new URL(request.url).pathname;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await usersApi.deleteUser('local:abc');
+    expect(calledPath).toBe('/api/users/local%3Aabc');
+  });
+
   it('setUserRole: PUT /users/:id/role with { role }', async () => {
     let capturedBody: unknown;
     server.use(

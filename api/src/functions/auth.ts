@@ -279,7 +279,19 @@ export async function getSession(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const clientPrincipal = await getSessionPrincipal(req);
+    let clientPrincipal = await getSessionPrincipal(req);
+    let cookies;
+    if (clientPrincipal) {
+      // The session outlives the account if an admin removed the user:
+      // report it as signed out and clear the cookie.
+      const { resource: profile } = await getContainer('users')
+        .item(clientPrincipal.userId, clientPrincipal.userId)
+        .read();
+      if (!profile) {
+        clientPrincipal = null;
+        cookies = [clearedSessionCookie()];
+      }
+    }
     return {
       status: 200,
       headers: {
@@ -287,6 +299,7 @@ export async function getSession(
         'Cache-Control': 'no-store',
       },
       body: JSON.stringify({ clientPrincipal }),
+      cookies,
     };
   } catch (error) {
     return handleError(error);

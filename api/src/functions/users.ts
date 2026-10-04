@@ -12,7 +12,13 @@ import {
   AppRole,
   UserProfile,
 } from '../lib/auth';
-import { ok, badRequest, notFound, handleError } from '../lib/response';
+import {
+  ok,
+  noContent,
+  badRequest,
+  notFound,
+  handleError,
+} from '../lib/response';
 
 const ALLOWED_ROLES: AppRole[] = ['anonymous', 'taster', 'admin'];
 
@@ -216,6 +222,49 @@ export async function setUserRole(
   }
 }
 
+// DELETE /api/users/{id} (admin-only)
+// Removes the user's profile and, for native accounts, their credentials so
+// they can no longer sign in (and the username becomes available again).
+// Ratings and whiskeys the user created are deliberately kept. An Entra ID
+// user who signs in again is re-provisioned as a new 'anonymous' user.
+export async function deleteUser(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const { principal } = await requireAdmin(req);
+    const { id } = req.params;
+
+    if (id === principal.userId) {
+      return badRequest('You cannot remove your own account');
+    }
+
+    const usersContainer = getContainer('users');
+    const { resource: target } = await usersContainer.item(id, id).read();
+    if (!target) {
+      return notFound('User not found');
+    }
+
+    // Remove credentials first: if the profile delete then fails, the user
+    // still can't sign in and an admin can simply retry the removal.
+    const credentialsContainer = getContainer('credentials');
+    const { resources: credentials } = await credentialsContainer.items
+      .query({
+        query: 'SELECT c.id FROM c WHERE c.userId = @userId',
+        parameters: [{ name: '@userId', value: id }],
+      })
+      .fetchAll();
+    for (const { id: credentialsId } of credentials as { id: string }[]) {
+      await credentialsContainer.item(credentialsId, credentialsId).delete();
+    }
+
+    await usersContainer.item(id, id).delete();
+    return noContent();
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 app.http('getMe', {
   methods: ['GET'],
   authLevel: 'anonymous',
@@ -242,4 +291,11 @@ app.http('setUserRole', {
   authLevel: 'anonymous',
   route: 'users/{id}/role',
   handler: setUserRole,
+});
+
+app.http('deleteUser', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'users/{id}',
+  handler: deleteUser,
 });
