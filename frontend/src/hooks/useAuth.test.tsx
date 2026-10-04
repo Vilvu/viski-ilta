@@ -255,4 +255,35 @@ describe('useAuth', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.isAuthenticated).toBe(false);
   });
+
+  it('treats a must-change-password session as not signed in', async () => {
+    let profileRequested = false;
+    server.use(
+      http.get('/.auth/me', () => HttpResponse.json({ clientPrincipal: null })),
+      http.get('/api/auth/me', () =>
+        HttpResponse.json({
+          clientPrincipal: {
+            userId: 'local:1',
+            userRoles: ['authenticated'],
+            claims: [{ typ: 'name', val: 'alice' }],
+            identityProvider: 'local',
+            userDetails: 'alice',
+          },
+          mustChangePassword: true,
+        }),
+      ),
+      http.get('/api/users/me', () => {
+        profileRequested = true;
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.mustChangePassword).toBe(true);
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(result.current.user?.name).toBe('alice');
+    expect(profileRequested).toBe(false);
+  });
 });

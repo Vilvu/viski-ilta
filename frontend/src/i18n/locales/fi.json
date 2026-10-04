@@ -11,7 +11,8 @@
     "editName": "Muokkaa näyttönimeä",
     "editDisplayNameTitle": "Muokkaa näyttönimeä",
     "openMenu": "Avaa valikko",
-    "language": "Kieli"
+    "language": "Kieli",
+    "changePassword": "Vaihda salasana"
   },
   "auth": {
     "signInTitle": "Kirjaudu sisään",
@@ -36,8 +37,19 @@
       "invalidCredentials": "Virheellinen käyttäjätunnus tai salasana.",
       "usernameTaken": "Käyttäjätunnus on jo käytössä.",
       "locked": "Liian monta epäonnistunutta yritystä. Yritä uudelleen 15 minuutin kuluttua.",
-      "generic": "Jotain meni pieleen. Yritä uudelleen."
-    }
+      "generic": "Jotain meni pieleen. Yritä uudelleen.",
+      "tempPasswordExpired": "Väliaikainen salasanasi on vanhentunut. Pyydä ylläpitäjää nollaamaan se uudelleen.",
+      "currentPasswordIncorrect": "Nykyinen salasana on väärin.",
+      "passwordUnchanged": "Uuden salasanan on oltava eri kuin nykyinen."
+    },
+    "changePasswordTitle": "Vaihda salasana",
+    "changePasswordDescription": "Valitse tilillesi uusi salasana.",
+    "changePasswordRequired": "Ylläpitäjä on nollannut salasanasi. Valitse uusi salasana jatkaaksesi.",
+    "currentPassword": "Nykyinen salasana",
+    "temporaryPassword": "Väliaikainen salasana",
+    "newPassword": "Uusi salasana",
+    "confirmNewPassword": "Vahvista uusi salasana",
+    "changePasswordSubmit": "Vaihda salasana"
   },
   "common": {
     "loading": "Ladataan...",
@@ -189,6 +201,18 @@
       "anonymous": "Anonyymi",
       "taster": "Maistelija",
       "admin": "Ylläpitäjä"
+    },
+    "resetPassword": "Nollaa salasana",
+    "resetPasswordFor": "Nollaa salasana käyttäjälle {{name}}",
+    "confirmResetPassword": "Nollataanko käyttäjän {{name}} salasana? Nykyinen salasana lakkaa toimimasta ja saat väliaikaisen salasanan annettavaksi käyttäjälle.",
+    "resetPasswordFailed": "Salasanan nollaaminen epäonnistui",
+    "tempPassword": {
+      "title": "Väliaikainen salasana",
+      "description": "Anna tämä väliaikainen salasana käyttäjälle {{name}}. Hänen on valittava uusi salasana kirjautuessaan. Salasana näytetään vain kerran.",
+      "copy": "Kopioi",
+      "copied": "Kopioitu",
+      "expires": "Vanhenee {{expires}}.",
+      "done": "Valmis"
     }
   },
   "whiskeyForm": {

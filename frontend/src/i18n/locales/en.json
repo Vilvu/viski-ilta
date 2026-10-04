@@ -11,7 +11,8 @@
     "editName": "Edit display name",
     "editDisplayNameTitle": "Edit display name",
     "openMenu": "Open menu",
-    "language": "Language"
+    "language": "Language",
+    "changePassword": "Change password"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -36,8 +37,19 @@
       "invalidCredentials": "Invalid username or password.",
       "usernameTaken": "That username is already taken.",
       "locked": "Too many failed attempts. Try again in 15 minutes.",
-      "generic": "Something went wrong. Please try again."
-    }
+      "generic": "Something went wrong. Please try again.",
+      "tempPasswordExpired": "Your temporary password has expired. Ask an admin to reset it again.",
+      "currentPasswordIncorrect": "Current password is incorrect.",
+      "passwordUnchanged": "The new password must be different from the current one."
+    },
+    "changePasswordTitle": "Change password",
+    "changePasswordDescription": "Choose a new password for your account.",
+    "changePasswordRequired": "Your password was reset by an admin. Choose a new password to continue.",
+    "currentPassword": "Current password",
+    "temporaryPassword": "Temporary password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "changePasswordSubmit": "Change password"
   },
   "common": {
     "loading": "Loading...",
@@ -189,6 +201,18 @@
       "anonymous": "Anonymous",
       "taster": "Taster",
       "admin": "Admin"
+    },
+    "resetPassword": "Reset password",
+    "resetPasswordFor": "Reset password for {{name}}",
+    "confirmResetPassword": "Reset the password for {{name}}? Their current password will stop working and you will get a temporary password to give them.",
+    "resetPasswordFailed": "Failed to reset password",
+    "tempPassword": {
+      "title": "Temporary password",
+      "description": "Give this temporary password to {{name}}. They must choose a new password when they sign in. It is shown only once.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "expires": "Expires {{expires}}.",
+      "done": "Done"
     }
   },
   "whiskeyForm": {

@@ -8,6 +8,9 @@ interface IdentityState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  // Native user signed in with a temporary password: not authenticated for
+  // anything except changing it (mirrors the API's restricted session).
+  mustChangePassword?: boolean;
 }
 
 interface AuthState {
@@ -16,6 +19,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isTaster: boolean;
+  mustChangePassword: boolean;
 }
 
 // Azure Static Web Apps provides /.auth/me endpoint
@@ -29,7 +33,10 @@ const ANONYMOUS: IdentityState = {
   isAuthenticated: false,
 };
 
-function toIdentity(principal: ClientPrincipal): IdentityState {
+function toIdentity(
+  principal: ClientPrincipal,
+  mustChangePassword = false,
+): IdentityState {
   const { userId, claims, userDetails, identityProvider } = principal;
   const nameClaim =
     claims?.find((c) => c.typ === 'name') ??
@@ -48,7 +55,8 @@ function toIdentity(principal: ClientPrincipal): IdentityState {
       provider: identityProvider,
     },
     isLoading: false,
-    isAuthenticated: true,
+    isAuthenticated: !mustChangePassword,
+    mustChangePassword,
   };
 }
 
@@ -58,8 +66,10 @@ function toIdentity(principal: ClientPrincipal): IdentityState {
  */
 async function fetchNativeIdentity(): Promise<IdentityState> {
   try {
-    const principal = await authApi.getSession();
-    return principal ? toIdentity(principal) : ANONYMOUS;
+    const { clientPrincipal, mustChangePassword } = await authApi.getSession();
+    return clientPrincipal
+      ? toIdentity(clientPrincipal, mustChangePassword)
+      : ANONYMOUS;
   } catch {
     return ANONYMOUS;
   }
@@ -166,5 +176,6 @@ export function useAuth(): AuthState {
     isAuthenticated: identity.isAuthenticated,
     isAdmin,
     isTaster,
+    mustChangePassword: identity.mustChangePassword === true,
   };
 }

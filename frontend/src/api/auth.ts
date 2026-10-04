@@ -16,6 +16,20 @@ export interface Credentials {
   password: string;
 }
 
+/**
+ * A native session that signed in with an admin-issued temporary password
+ * is restricted: the API treats it as signed out everywhere except
+ * POST /auth/change-password until the password is changed.
+ */
+export interface NativeSession {
+  clientPrincipal: ClientPrincipal | null;
+  mustChangePassword: boolean;
+}
+
+export interface LoginResult extends UserProfile {
+  mustChangePassword?: boolean;
+}
+
 /** Native username/password accounts (app-managed session cookie). */
 export const authApi = {
   register: async (credentials: Credentials): Promise<UserProfile> => {
@@ -26,8 +40,8 @@ export const authApi = {
     return response.data.data;
   },
 
-  login: async (credentials: Credentials): Promise<UserProfile> => {
-    const response = await apiClient.post<ApiResponse<UserProfile>>(
+  login: async (credentials: Credentials): Promise<LoginResult> => {
+    const response = await apiClient.post<ApiResponse<LoginResult>>(
       '/auth/login',
       credentials,
     );
@@ -38,10 +52,21 @@ export const authApi = {
     await apiClient.post('/auth/logout');
   },
 
-  getSession: async (): Promise<ClientPrincipal | null> => {
-    const response = await apiClient.get<{
-      clientPrincipal: ClientPrincipal | null;
-    }>('/auth/me');
-    return response.data.clientPrincipal;
+  getSession: async (): Promise<NativeSession> => {
+    const response = await apiClient.get<NativeSession>('/auth/me');
+    return {
+      clientPrincipal: response.data.clientPrincipal,
+      mustChangePassword: response.data.mustChangePassword === true,
+    };
+  },
+
+  changePassword: async (
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> => {
+    await apiClient.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
   },
 };

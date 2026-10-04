@@ -11,10 +11,16 @@ import { UserProfile } from '../lib/auth';
 import {
   clearedSessionCookie,
   createSessionToken,
-  getSessionPrincipal,
   isSessionConfigured,
+  principalFromClaims,
+  readSession,
   sessionCookie,
 } from '../lib/session';
+import {
+  BCRYPT_ROUNDS,
+  hashPassword,
+  validatePassword,
+} from '../lib/passwords';
 import {
   ok,
   created,
@@ -39,18 +45,23 @@ export interface Credentials {
   passwordHash: string;
   failedAttempts: number;
   lockedUntil: string | null;
+  // Set when an admin resets the password: the current password is a
+  // temporary one that expires at tempPasswordExpiresAt and must be
+  // replaced on the next sign-in.
+  mustChangePassword?: boolean;
+  tempPasswordExpiresAt?: string | null;
+  // Embedded in session tokens; bumped to sign out existing sessions.
+  sessionVersion?: number;
   createdAt: string;
   updatedAt: string;
 }
 
-const BCRYPT_ROUNDS = 10;
 export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_MINUTES = 15;
 const USERNAME_PATTERN = /^[A-Za-z0-9_.-]{3,32}$/;
-const MIN_PASSWORD_LENGTH = 8;
-// bcrypt silently ignores input past 72 bytes.
-const MAX_PASSWORD_BYTES = 72;
 const INVALID_CREDENTIALS = 'Invalid username or password';
+const TEMP_PASSWORD_EXPIRED =
+  'Temporary password has expired. Ask an admin to reset it again.';
 
 // Compared against when the username doesn't exist, so a login attempt for
 // an unknown user takes as long as one for a real user.
@@ -59,16 +70,6 @@ const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS);
 function validateUsername(username: unknown): string | null {
   if (typeof username !== 'string' || !USERNAME_PATTERN.test(username)) {
     return 'Username must be 3-32 characters: letters, numbers, ".", "_" or "-"';
-  }
-  return null;
-}
-
-function validatePassword(password: unknown): string | null {
-  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
-    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
-  }
-  if (Buffer.byteLength(password, 'utf-8') > MAX_PASSWORD_BYTES) {
-    return `Password must be at most ${MAX_PASSWORD_BYTES} bytes`;
   }
   return null;
 }
@@ -112,6 +113,49 @@ async function readBody(
   }
 }
 
+function isLocked(credentials: Credentials, now: Date): boolean {
+  return !!credentials.lockedUntil && new Date(credentials.lockedUntil) > now;
+}
+
+function isTempPasswordExpired(credentials: Credentials, now: Date): boolean {
+  return (
+    credentials.mustChangePassword === true &&
+    (!credentials.tempPasswordExpiresAt ||
+      new Date(credentials.tempPasswordExpiresAt) <= now)
+  );
+}
+
+/**
+ * Records a failed password check (sign-in or change-password share one
+ * counter). Returns true if this attempt locked the account.
+ */
+async function recordFailedAttempt(
+  credentials: Credentials,
+  now: Date,
+): Promise<boolean> {
+  const failedAttempts = (credentials.failedAttempts ?? 0) + 1;
+  const locked = failedAttempts >= MAX_FAILED_ATTEMPTS;
+  await getContainer('credentials')
+    .item(credentials.id, credentials.id)
+    .patch([
+      // Reset the counter when locking so the next window starts fresh.
+      {
+        op: 'set',
+        path: '/failedAttempts',
+        value: locked ? 0 : failedAttempts,
+      },
+      {
+        op: 'set',
+        path: '/lockedUntil',
+        value: locked
+          ? new Date(now.getTime() + LOCKOUT_MINUTES * 60_000).toISOString()
+          : null,
+      },
+      { op: 'set', path: '/updatedAt', value: now.toISOString() },
+    ]);
+  return locked;
+}
+
 // POST /api/auth/register
 export async function register(
   req: HttpRequest,
@@ -135,7 +179,7 @@ export async function register(
       id: name.toLowerCase(),
       username: name,
       userId,
-      passwordHash: await bcrypt.hash(password as string, BCRYPT_ROUNDS),
+      passwordHash: await hashPassword(password as string),
       failedAttempts: 0,
       lockedUntil: null,
       createdAt: now,
@@ -210,31 +254,18 @@ export async function login(
     }
 
     const now = new Date();
-    if (credentials.lockedUntil && new Date(credentials.lockedUntil) > now) {
+    if (isLocked(credentials, now)) {
       return tooManyAttempts();
     }
 
     const valid = await bcrypt.compare(password, credentials.passwordHash);
     if (!valid) {
-      const failedAttempts = (credentials.failedAttempts ?? 0) + 1;
-      const locked = failedAttempts >= MAX_FAILED_ATTEMPTS;
-      await container.item(id, id).patch([
-        // Reset the counter when locking so the next window starts fresh.
-        {
-          op: 'set',
-          path: '/failedAttempts',
-          value: locked ? 0 : failedAttempts,
-        },
-        {
-          op: 'set',
-          path: '/lockedUntil',
-          value: locked
-            ? new Date(now.getTime() + LOCKOUT_MINUTES * 60_000).toISOString()
-            : null,
-        },
-        { op: 'set', path: '/updatedAt', value: now.toISOString() },
-      ]);
+      const locked = await recordFailedAttempt(credentials, now);
       return locked ? tooManyAttempts() : unauthorized(INVALID_CREDENTIALS);
+    }
+
+    if (isTempPasswordExpired(credentials, now)) {
+      return unauthorized(TEMP_PASSWORD_EXPIRED);
     }
 
     if (credentials.failedAttempts || credentials.lockedUntil) {
@@ -252,12 +283,18 @@ export async function login(
       return unauthorized(INVALID_CREDENTIALS);
     }
 
+    const mustChangePassword = credentials.mustChangePassword === true;
     const token = await createSessionToken({
       userId: credentials.userId,
       username: credentials.username,
+      mustChangePassword,
+      sessionVersion: credentials.sessionVersion ?? 0,
     });
     return {
-      ...ok(profileResponse(profile as UserProfile)),
+      ...ok({
+        ...profileResponse(profile as UserProfile),
+        mustChangePassword,
+      }),
       cookies: [sessionCookie(token)],
     };
   } catch (error) {
@@ -279,7 +316,8 @@ export async function getSession(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    let clientPrincipal = await getSessionPrincipal(req);
+    const session = await readSession(req);
+    let clientPrincipal = session ? principalFromClaims(session) : null;
     let cookies;
     if (clientPrincipal) {
       // The session outlives the account if an admin removed the user:
@@ -298,9 +336,98 @@ export async function getSession(
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store',
       },
-      body: JSON.stringify({ clientPrincipal }),
+      body: JSON.stringify({
+        clientPrincipal,
+        mustChangePassword: clientPrincipal
+          ? session?.mustChangePassword === true
+          : false,
+      }),
       cookies,
     };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+// POST /api/auth/change-password
+// Works for any native session, including the restricted one issued after
+// signing in with a temporary password. Issues a fresh, unrestricted session.
+export async function changePassword(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const session = await readSession(req);
+    if (!session) {
+      return { ...unauthorized(), cookies: [clearedSessionCookie()] };
+    }
+
+    let body: { currentPassword?: unknown; newPassword?: unknown } = {};
+    try {
+      body = ((await req.json()) ?? {}) as typeof body;
+    } catch {
+      // fall through to validation
+    }
+    const { currentPassword, newPassword } = body;
+    if (typeof currentPassword !== 'string') {
+      return badRequest('currentPassword is required');
+    }
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) return badRequest(passwordError);
+    if (newPassword === currentPassword) {
+      return badRequest('New password must be different from the current one');
+    }
+
+    const id = session.username.toLowerCase();
+    const container = getContainer('credentials');
+    const { resource } = await container.item(id, id).read();
+    const credentials = resource as Credentials | undefined;
+    // readSession already checked this; the account may have changed since.
+    if (!credentials || credentials.userId !== session.userId) {
+      return { ...unauthorized(), cookies: [clearedSessionCookie()] };
+    }
+
+    // Same protections as sign-in: a session cookie must not allow unlimited
+    // guesses at the current password, or use of an expired temporary one.
+    const now = new Date();
+    if (isLocked(credentials, now)) {
+      return tooManyAttempts();
+    }
+    if (!(await bcrypt.compare(currentPassword, credentials.passwordHash))) {
+      const locked = await recordFailedAttempt(credentials, now);
+      return locked
+        ? tooManyAttempts()
+        : badRequest('Current password is incorrect');
+    }
+    if (isTempPasswordExpired(credentials, now)) {
+      return {
+        ...unauthorized(TEMP_PASSWORD_EXPIRED),
+        cookies: [clearedSessionCookie()],
+      };
+    }
+
+    const sessionVersion = (credentials.sessionVersion ?? 0) + 1;
+    await container.item(id, id).patch([
+      {
+        op: 'set',
+        path: '/passwordHash',
+        value: await hashPassword(newPassword as string),
+      },
+      { op: 'set', path: '/mustChangePassword', value: false },
+      { op: 'set', path: '/tempPasswordExpiresAt', value: null },
+      { op: 'set', path: '/failedAttempts', value: 0 },
+      { op: 'set', path: '/lockedUntil', value: null },
+      // Signs out every other session (e.g. other devices).
+      { op: 'set', path: '/sessionVersion', value: sessionVersion },
+      { op: 'set', path: '/updatedAt', value: now.toISOString() },
+    ]);
+
+    const token = await createSessionToken({
+      userId: credentials.userId,
+      username: credentials.username,
+      sessionVersion,
+    });
+    return { status: 204, cookies: [sessionCookie(token)] };
   } catch (error) {
     return handleError(error);
   }
@@ -332,4 +459,11 @@ app.http('authSession', {
   authLevel: 'anonymous',
   route: 'auth/me',
   handler: getSession,
+});
+
+app.http('authChangePassword', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'auth/change-password',
+  handler: changePassword,
 });

@@ -65,7 +65,7 @@ whisky-app/
 ├── api/               # Azure Functions
 │   ├── src/
 │   │   ├── functions/ # auth.ts, events.ts, ratings.ts, users.ts, whiskeys.ts, health.ts
-│   │   └── lib/       # cosmos.ts, cosmos.mock.ts, auth.ts, session.ts, response.ts, aggregates.ts, blob.ts, ai.ts
+│   │   └── lib/       # cosmos.ts, cosmos.mock.ts, auth.ts, session.ts, passwords.ts, response.ts, aggregates.ts, blob.ts, ai.ts
 ├── docs/              # Architecture & deployment docs
 └── staticwebapp.config.json
 ```
@@ -89,7 +89,10 @@ whisky-app/
 - `GET/PUT /api/users/me` — User profile
 - `GET /api/users`, `PUT /api/users/:id/role`, `DELETE /api/users/:id` — Admin user management. Removing a user
   deletes their profile (and native credentials) but keeps their ratings and whiskeys; admins can't remove themselves
-- `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` — Native accounts
+- `POST /api/users/:id/reset-password` — Admin-only: issues a 24-hour temporary password for a native account that
+  must be changed at next sign-in, and signs out the user's existing sessions
+- `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
+  `POST /api/auth/change-password` — Native accounts
 
 ### Auth & Roles
 - Sign-in page at `/login`: native username/password (open sign-up) or `/.auth/login/aad` (Microsoft Entra ID)
@@ -116,7 +119,9 @@ whisky-app/
 - `frontend/src/components/WhiskeyImageField.tsx` — Photo picker + "Recognize with AI" used by add/edit forms;
   `frontend/src/lib/image.ts` downscales photos client-side, `frontend/src/lib/recognize.ts` fills only empty fields
 - `api/src/lib/auth.ts` — Client principal parsing (SWA header or native session), role checking
-- `api/src/lib/session.ts` — Native session JWT + cookie helpers
+- `api/src/lib/session.ts` — Native session JWT + cookie helpers; `readSession` validates `sessionVersion` and
+  `getSessionPrincipal` ignores restricted (must-change-password) sessions
+- `api/src/lib/passwords.ts` — Password rules, bcrypt hashing, temporary password generation
 - `api/src/functions/auth.ts` — Native register/login/logout/session endpoints
 - `staticwebapp.config.json` — SWA routing, navigation fallback, security headers
 - `frontend/src/App.tsx` — Application routes with ProtectedRoute/AdminRoute guards

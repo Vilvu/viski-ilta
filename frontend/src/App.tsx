@@ -10,6 +10,7 @@ import RankingPage from '@/pages/RankingPage';
 import UserManagementPage from '@/pages/UserManagementPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import LoginPage from '@/pages/LoginPage';
+import ChangePasswordPage from '@/pages/ChangePasswordPage';
 import TasterRoute from '@/components/ProtectedRoute';
 import AdminRoute from '@/components/AdminRoute';
 
@@ -27,6 +28,7 @@ function App() {
         <Route index element={<EventsPage />} />
         <Route path="ranking" element={<RankingPage />} />
         <Route path="login" element={<LoginPage />} />
+        <Route path="change-password" element={<ChangePasswordPage />} />
         <Route path="events/:eventId" element={<EventDetailPage />} />
         <Route
           path="whiskeys/:whiskeyId"

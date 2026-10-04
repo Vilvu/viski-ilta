@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -11,7 +11,9 @@ import styles from './Layout.module.css';
 
 export default function Layout() {
   const { t } = useTranslation();
-  const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
+  const { user, isAuthenticated, isLoading, isAdmin, mustChangePassword } =
+    useAuth();
+  const location = useLocation();
   const {
     data: profile,
     isLoading: profileLoading,
@@ -56,6 +58,11 @@ export default function Layout() {
     }
   };
 
+  // Signed in with a temporary password: nothing else works until it's changed.
+  if (mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
@@ -83,6 +90,16 @@ export default function Layout() {
                   >
                     ✏️
                   </button>
+                  {isNativeAccount && (
+                    <Link
+                      to="/change-password"
+                      className={styles.editBtn}
+                      title={t('nav.changePassword')}
+                      aria-label={t('nav.changePassword')}
+                    >
+                      🔑
+                    </Link>
+                  )}
                   <a
                     href="/.auth/logout"
                     onClick={isNativeAccount ? handleNativeSignOut : undefined}
@@ -90,6 +107,11 @@ export default function Layout() {
                     {t('nav.signOut')}
                   </a>
                 </div>
+              ) : mustChangePassword ? (
+                // Half signed in with a temporary password: allow backing out.
+                <a href="/" onClick={handleNativeSignOut}>
+                  {t('nav.signOut')}
+                </a>
               ) : (
                 <>
                   {!isLoading && isAuthenticated && (
@@ -149,6 +171,15 @@ export default function Layout() {
                     >
                       {t('nav.editName')}
                     </button>
+                    {isNativeAccount && (
+                      <Link
+                        to="/change-password"
+                        onClick={closeMenu}
+                        role="menuitem"
+                      >
+                        {t('nav.changePassword')}
+                      </Link>
+                    )}
                     <a
                       href="/.auth/logout"
                       onClick={
@@ -159,6 +190,10 @@ export default function Layout() {
                       {t('nav.signOut')}
                     </a>
                   </>
+                ) : mustChangePassword ? (
+                  <a href="/" onClick={handleNativeSignOut} role="menuitem">
+                    {t('nav.signOut')}
+                  </a>
                 ) : (
                   <Link
                     to="/login"

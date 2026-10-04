@@ -202,7 +202,7 @@ describe('GET /api/auth/me', () => {
     const res = await getSession(makeRequest(), ctx);
     expect(readJson(res)).toEqual({
       status: 200,
-      data: { clientPrincipal: null },
+      data: { clientPrincipal: null, mustChangePassword: false },
     });
   });
 
@@ -247,7 +247,10 @@ describe('removed native accounts', () => {
       makeRequest({ cookies: { [SESSION_COOKIE]: token } }),
       ctx,
     );
-    expect(readJson(res).data).toEqual({ clientPrincipal: null });
+    expect(readJson(res).data).toEqual({
+      clientPrincipal: null,
+      mustChangePassword: false,
+    });
     expect(res.cookies).toEqual([
       expect.objectContaining({ name: SESSION_COOKIE, value: '', maxAge: 0 }),
     ]);

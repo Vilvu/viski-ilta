@@ -382,7 +382,18 @@ This deletes the user's profile and, for a username/password account, their cred
 free again. Their ratings and any whiskeys they added are kept. A removed Microsoft user who signs in again starts
 over as a new `anonymous` user, and a removed username/password user can register again.
 
-### 4.5 Verify Role Assignment
+### 4.5 Resetting a Password
+
+Username/password users who forget their password ask an admin. In **User Management**, **Reset password**
+(shown only for username/password accounts other than your own) replaces their password with a temporary one.
+It is shown to the admin once, so copy it and pass it on. The temporary password expires after 24 hours and also
+clears any sign-in lockout. Any sessions the user still has open are signed out. When they sign in with it, they
+must choose a new password before they can use the app. Microsoft users manage their password with Microsoft.
+
+Any username/password user can also change their own password from the 🔑 **Change password** link in the
+header. That signs out their other devices.
+
+### 4.6 Verify Role Assignment
 
 A signed-in user can check their current app role via:
 ```

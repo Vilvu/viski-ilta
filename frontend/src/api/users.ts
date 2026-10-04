@@ -1,5 +1,10 @@
 import { apiClient } from './client';
-import type { ApiResponse, AdminUser, AppRole } from '@/types';
+import type {
+  ApiResponse,
+  AdminUser,
+  AppRole,
+  TemporaryPassword,
+} from '@/types';
 
 export interface UserProfile {
   displayName: string;
@@ -29,6 +34,13 @@ export const usersApi = {
 
   deleteUser: async (id: string): Promise<void> => {
     await apiClient.delete(`/users/${encodeURIComponent(id)}`);
+  },
+
+  resetPassword: async (id: string): Promise<TemporaryPassword> => {
+    const response = await apiClient.post<ApiResponse<TemporaryPassword>>(
+      `/users/${encodeURIComponent(id)}/reset-password`,
+    );
+    return response.data.data;
   },
 
   setUserRole: async (id: string, role: AppRole): Promise<AdminUser> => {
