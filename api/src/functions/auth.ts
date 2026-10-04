@@ -125,35 +125,91 @@ function isTempPasswordExpired(credentials: Credentials, now: Date): boolean {
   );
 }
 
+// Bounds the optimistic-concurrency retries in reserveAttempt. Losing this
+// many races in a row means a burst of parallel guesses; refuse rather than
+// spin.
+const MAX_RESERVE_RETRIES = 5;
+
+type AttemptReservation =
+  | { kind: 'missing' }
+  | { kind: 'locked' }
+  | { kind: 'reserved'; credentials: Credentials; lockedNow: boolean };
+
 /**
- * Records a failed password check (sign-in or change-password share one
- * counter). Returns true if this attempt locked the account.
+ * Counts a password check against the lockout limit BEFORE bcrypt runs
+ * (sign-in and change-password share one counter). The write is
+ * conditional on the etag that was read, so parallel requests can't all
+ * read the same counter and each get a "free" guess: every check is
+ * serialized through the counter, and once it reaches MAX_FAILED_ATTEMPTS
+ * the account is locked and further checks are refused unseen. A correct
+ * password resets the counter (see resetFailedAttempts).
+ *
+ * `expectedUserId` guards change-password against a username that was
+ * re-registered to another account since the session was issued.
  */
-async function recordFailedAttempt(
-  credentials: Credentials,
+async function reserveAttempt(
+  id: string,
   now: Date,
-): Promise<boolean> {
-  const failedAttempts = (credentials.failedAttempts ?? 0) + 1;
-  const locked = failedAttempts >= MAX_FAILED_ATTEMPTS;
+  expectedUserId?: string,
+): Promise<AttemptReservation> {
+  const item = getContainer('credentials').item(id, id);
+  for (let retry = 0; retry < MAX_RESERVE_RETRIES; retry++) {
+    const { resource, etag } = await item.read();
+    const credentials = resource as Credentials | undefined;
+    if (
+      !credentials ||
+      (expectedUserId && credentials.userId !== expectedUserId)
+    ) {
+      return { kind: 'missing' };
+    }
+    if (isLocked(credentials, now)) {
+      return { kind: 'locked' };
+    }
+
+    // An expired lock starts a fresh window.
+    const previous = credentials.lockedUntil ? 0 : credentials.failedAttempts;
+    const failedAttempts = (previous ?? 0) + 1;
+    const lockedNow = failedAttempts >= MAX_FAILED_ATTEMPTS;
+    const options = etag
+      ? { accessCondition: { type: 'IfMatch', condition: etag } }
+      : {};
+    try {
+      const { resource: updated } = await item.patch(
+        [
+          { op: 'set', path: '/failedAttempts', value: failedAttempts },
+          {
+            op: 'set',
+            path: '/lockedUntil',
+            value: lockedNow
+              ? new Date(now.getTime() + LOCKOUT_MINUTES * 60_000).toISOString()
+              : null,
+          },
+          { op: 'set', path: '/updatedAt', value: now.toISOString() },
+        ],
+        options,
+      );
+      return {
+        kind: 'reserved',
+        credentials: (updated ?? credentials) as Credentials,
+        lockedNow,
+      };
+    } catch (error) {
+      if ((error as { code?: number })?.code === 412) continue;
+      throw error;
+    }
+  }
+  return { kind: 'locked' };
+}
+
+/** Clears the counter claimed by reserveAttempt after a correct password. */
+async function resetFailedAttempts(id: string, now: Date): Promise<void> {
   await getContainer('credentials')
-    .item(credentials.id, credentials.id)
+    .item(id, id)
     .patch([
-      // Reset the counter when locking so the next window starts fresh.
-      {
-        op: 'set',
-        path: '/failedAttempts',
-        value: locked ? 0 : failedAttempts,
-      },
-      {
-        op: 'set',
-        path: '/lockedUntil',
-        value: locked
-          ? new Date(now.getTime() + LOCKOUT_MINUTES * 60_000).toISOString()
-          : null,
-      },
+      { op: 'set', path: '/failedAttempts', value: 0 },
+      { op: 'set', path: '/lockedUntil', value: null },
       { op: 'set', path: '/updatedAt', value: now.toISOString() },
     ]);
-  return locked;
 }
 
 // POST /api/auth/register
@@ -244,36 +300,26 @@ export async function login(
     }
 
     const id = username.toLowerCase();
-    const container = getContainer('credentials');
-    const { resource } = await container.item(id, id).read();
-    const credentials = resource as Credentials | undefined;
-
-    if (!credentials) {
+    const now = new Date();
+    const reservation = await reserveAttempt(id, now);
+    if (reservation.kind === 'missing') {
       await bcrypt.compare(password, DUMMY_HASH);
       return unauthorized(INVALID_CREDENTIALS);
     }
-
-    const now = new Date();
-    if (isLocked(credentials, now)) {
+    if (reservation.kind === 'locked') {
       return tooManyAttempts();
     }
 
+    const { credentials, lockedNow } = reservation;
     const valid = await bcrypt.compare(password, credentials.passwordHash);
     if (!valid) {
-      const locked = await recordFailedAttempt(credentials, now);
-      return locked ? tooManyAttempts() : unauthorized(INVALID_CREDENTIALS);
+      return lockedNow ? tooManyAttempts() : unauthorized(INVALID_CREDENTIALS);
     }
+
+    await resetFailedAttempts(id, now);
 
     if (isTempPasswordExpired(credentials, now)) {
       return unauthorized(TEMP_PASSWORD_EXPIRED);
-    }
-
-    if (credentials.failedAttempts || credentials.lockedUntil) {
-      await container.item(id, id).patch([
-        { op: 'set', path: '/failedAttempts', value: 0 },
-        { op: 'set', path: '/lockedUntil', value: null },
-        { op: 'set', path: '/updatedAt', value: now.toISOString() },
-      ]);
     }
 
     const { resource: profile } = await getContainer('users')
@@ -303,10 +349,28 @@ export async function login(
 }
 
 // POST /api/auth/logout
+// Clearing the cookie isn't enough on its own: a copied token would stay
+// valid until it expires. Bumping sessionVersion revokes it server-side —
+// along with the account's sessions on other devices.
 export async function logout(
-  _req: HttpRequest,
+  req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
+  try {
+    const session = await readSession(req);
+    if (session) {
+      const id = session.username.toLowerCase();
+      await getContainer('credentials')
+        .item(id, id)
+        .patch([
+          { op: 'incr', path: '/sessionVersion', value: 1 },
+          { op: 'set', path: '/updatedAt', value: new Date().toISOString() },
+        ]);
+    }
+  } catch (error) {
+    // Still clear the cookie; the browser should end up signed out.
+    console.error('logout: failed to revoke session', error);
+  }
   return { status: 204, cookies: [clearedSessionCookie()] };
 }
 
@@ -380,26 +444,26 @@ export async function changePassword(
 
     const id = session.username.toLowerCase();
     const container = getContainer('credentials');
-    const { resource } = await container.item(id, id).read();
-    const credentials = resource as Credentials | undefined;
-    // readSession already checked this; the account may have changed since.
-    if (!credentials || credentials.userId !== session.userId) {
-      return { ...unauthorized(), cookies: [clearedSessionCookie()] };
-    }
-
     // Same protections as sign-in: a session cookie must not allow unlimited
     // guesses at the current password, or use of an expired temporary one.
     const now = new Date();
-    if (isLocked(credentials, now)) {
+    // readSession already checked the account; it may have changed since.
+    const reservation = await reserveAttempt(id, now, session.userId);
+    if (reservation.kind === 'missing') {
+      return { ...unauthorized(), cookies: [clearedSessionCookie()] };
+    }
+    if (reservation.kind === 'locked') {
       return tooManyAttempts();
     }
+
+    const { credentials, lockedNow } = reservation;
     if (!(await bcrypt.compare(currentPassword, credentials.passwordHash))) {
-      const locked = await recordFailedAttempt(credentials, now);
-      return locked
+      return lockedNow
         ? tooManyAttempts()
         : badRequest('Current password is incorrect');
     }
     if (isTempPasswordExpired(credentials, now)) {
+      await resetFailedAttempts(id, now);
       return {
         ...unauthorized(TEMP_PASSWORD_EXPIRED),
         cookies: [clearedSessionCookie()],

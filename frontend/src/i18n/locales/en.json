@@ -191,8 +191,9 @@
     "removeFailed": "Failed to remove user",
     "cannotRemoveSelf": "You cannot remove yourself",
     "confirmRemove": "Remove {{name}} from the application? Their ratings are kept. They can sign up or sign in again later, but will start without any access.",
+    "usernameAccount": "(username)",
     "columns": {
-      "email": "Email",
+      "email": "Email / username",
       "displayName": "Display Name",
       "role": "Role",
       "actions": "Actions"

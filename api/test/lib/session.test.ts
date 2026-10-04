@@ -19,7 +19,7 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from '../../src/lib/session';
 
-const SECRET = 'test-secret-value';
+const SECRET = 'test-secret-value-at-least-32-bytes-long';
 
 function seedCredentials(sessionVersion = 0, userId = 'local:1') {
   fakeCosmos.seed('credentials', [
@@ -76,7 +76,7 @@ describe('session tokens', () => {
       userId: 'local:1',
       username: 'a',
     });
-    vi.stubEnv('AUTH_SESSION_SECRET', 'another-secret');
+    vi.stubEnv('AUTH_SESSION_SECRET', 'another-secret-value-at-least-32-bytes');
     await expect(verifySessionToken(token)).resolves.toBeNull();
   });
 
@@ -116,6 +116,19 @@ describe('session tokens', () => {
     await expect(
       createSessionToken({ userId: 'local:1', username: 'a' }),
     ).rejects.toThrow();
+  });
+
+  it('treats a secret shorter than 32 bytes as not configured', async () => {
+    const token = await createSessionToken({
+      userId: 'local:1',
+      username: 'a',
+    });
+    vi.stubEnv('AUTH_SESSION_SECRET', 'x'.repeat(31));
+    expect(isSessionConfigured()).toBe(false);
+    await expect(verifySessionToken(token)).resolves.toBeNull();
+
+    vi.stubEnv('AUTH_SESSION_SECRET', 'x'.repeat(32));
+    expect(isSessionConfigured()).toBe(true);
   });
 });
 

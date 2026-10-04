@@ -258,7 +258,8 @@ az staticwebapp appsettings set \
 value for you. `ANTHROPIC_API_KEY` is optional: without it the app works normally and the "Recognize with AI"
 button reports that recognition is not configured.
 
-`AUTH_SESSION_SECRET` signs native username/password session cookies. Use a long random value. Without it,
+`AUTH_SESSION_SECRET` signs native username/password session cookies. It must be at least 32 bytes
+(`openssl rand -base64 48` gives 64 characters); a shorter value counts as unset. Without it,
 native sign-in is disabled (fails closed), and rotating it signs out every native user. The `infra-deploy`
 workflow sets it from the `AUTH_SESSION_SECRET` GitHub secret (Bicep `authSessionSecret` parameter). The SWA
 app-settings resource replaces all settings, so keep that secret populated whenever the infra workflow runs.
@@ -437,7 +438,7 @@ Add the following secrets:
 | `COSMOS_DB_ENDPOINT` | `https://cosmos-whiskyapp.documents.azure.com:443/` | Cosmos DB endpoint |
 | `COSMOS_DB_KEY` | Your Cosmos DB primary key | Cosmos DB authentication |
 | `COSMOS_DB_DATABASE` | `whiskyapp` | Database name |
-| `AUTH_SESSION_SECRET` | Long random string | Native sign-in session signing key (used by `infra-deploy`) |
+| `AUTH_SESSION_SECRET` | Random string, at least 32 bytes | Native sign-in session signing key (used by `infra-deploy`) |
 
 > **Note**: The workflow file references these secrets with the `COSMOS_DB_` prefix. The Azure Functions runtime receives them as environment variables. The API code reads `COSMOS_ENDPOINT`, `COSMOS_KEY`, and `COSMOS_DATABASE` — ensure the SWA application settings (Section 2.4) use the correct names that match the code.
 

@@ -20,6 +20,7 @@ const users = [
     displayName: 'Alice',
     role: 'taster',
     authProvider: 'local',
+    username: 'alice_w',
   },
   {
     id: 'aad-bob',
@@ -84,6 +85,20 @@ async function removeButtonFor(name: string) {
   );
   return within(await rowFor(name)).getByRole('button', { name: /remove/i });
 }
+
+describe('UserManagementPage — account column', () => {
+  it('shows the sign-in username for username/password accounts', async () => {
+    renderWithProviders(<UserManagementPage />, { route: '/admin/users' });
+
+    const alice = await rowFor('Alice');
+    expect(within(alice).getByText('alice_w')).toBeInTheDocument();
+    expect(within(alice).getByText('(username)')).toBeInTheDocument();
+
+    const bob = await rowFor('Bob');
+    expect(within(bob).getByText('bob@example.com')).toBeInTheDocument();
+    expect(within(bob).queryByText('(username)')).not.toBeInTheDocument();
+  });
+});
 
 describe('UserManagementPage — removing users', () => {
   it('removes a user after confirmation and refreshes the list', async () => {

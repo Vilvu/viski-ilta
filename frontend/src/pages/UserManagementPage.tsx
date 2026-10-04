@@ -104,7 +104,18 @@ export default function UserManagementPage() {
                 const isSelf = u.id === user?.id;
                 return (
                   <tr key={u.id}>
-                    <td>{u.email}</td>
+                    <td>
+                      {u.authProvider === 'local' && u.username ? (
+                        <>
+                          {u.username}{' '}
+                          <span className={styles.accountType}>
+                            {t('userManagement.usernameAccount')}
+                          </span>
+                        </>
+                      ) : (
+                        u.email
+                      )}
+                    </td>
                     <td>{u.displayName}</td>
                     <td>
                       <select
