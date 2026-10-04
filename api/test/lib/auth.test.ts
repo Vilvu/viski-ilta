@@ -70,7 +70,10 @@ describe('requireAuth', () => {
 
 describe('resolvePrincipal (native session fallback)', () => {
   beforeEach(() => {
-    vi.stubEnv('AUTH_SESSION_SECRET', 'test-secret-value');
+    vi.stubEnv(
+      'AUTH_SESSION_SECRET',
+      'test-secret-value-at-least-32-bytes-long',
+    );
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -246,6 +249,27 @@ describe('ensureUser', () => {
     expect(profile.email).toBe('legacy@example.com');
     expect(profile.role).toBe('anonymous');
     expect(profile.usernameConfirmed).toBe(false);
+  });
+
+  it('keeps fields it does not manage (e.g. authProvider) when backfilling', async () => {
+    fakeCosmos.seed('users', [
+      {
+        id: 'local:legacy',
+        displayName: 'Legacy',
+        email: '',
+        authProvider: 'local',
+        createdAt: '2020-01-01T00:00:00Z',
+        updatedAt: '2020-01-01T00:00:00Z',
+      } as never,
+    ]);
+    const principal = makePrincipal({
+      userId: 'local:legacy',
+      identityProvider: 'local',
+    });
+    const profile = await ensureUser(principal);
+    expect(profile.role).toBe('anonymous');
+    expect(profile.authProvider).toBe('local');
+    expect(profile.createdAt).toBe('2020-01-01T00:00:00Z');
   });
 
   it('retries the backfill write on a 412 precondition failure without failing the request', async () => {

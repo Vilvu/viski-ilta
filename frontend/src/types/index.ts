@@ -81,6 +81,8 @@ export interface AdminUser {
   role: AppRole;
   // 'local' = username/password account (its password can be reset).
   authProvider?: 'aad' | 'local';
+  // Sign-in username of a 'local' account (they have no email).
+  username?: string;
 }
 
 export interface TemporaryPassword {

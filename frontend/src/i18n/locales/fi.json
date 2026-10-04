@@ -191,8 +191,9 @@
     "removeFailed": "Käyttäjän poistaminen epäonnistui",
     "cannotRemoveSelf": "Et voi poistaa itseäsi",
     "confirmRemove": "Poistetaanko {{name}} sovelluksesta? Käyttäjän arviot säilyvät. Hän voi myöhemmin rekisteröityä tai kirjautua uudelleen, mutta ilman käyttöoikeuksia.",
+    "usernameAccount": "(käyttäjätunnus)",
     "columns": {
-      "email": "Sähköposti",
+      "email": "Sähköposti / käyttäjätunnus",
       "displayName": "Näyttönimi",
       "role": "Rooli",
       "actions": "Toiminnot"

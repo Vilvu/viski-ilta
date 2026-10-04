@@ -19,10 +19,15 @@ export const LOCAL_PROVIDER = 'local';
 
 const ISSUER = 'whisky-app';
 
+// HS256 keys shorter than the 256-bit hash output can be brute-forced
+// offline from a single captured token. A short secret is treated as unset.
+export const MIN_SECRET_BYTES = 32;
+
 function getSecret(): Uint8Array | null {
   const secret = process.env.AUTH_SESSION_SECRET;
   if (!secret) return null;
-  return new TextEncoder().encode(secret);
+  const bytes = new TextEncoder().encode(secret);
+  return bytes.length >= MIN_SECRET_BYTES ? bytes : null;
 }
 
 export function isSessionConfigured(): boolean {

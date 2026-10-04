@@ -27,7 +27,7 @@ const admin = makePrincipal({ userId: ADMIN_ID });
 
 beforeEach(() => {
   fakeCosmos.reset();
-  vi.stubEnv('AUTH_SESSION_SECRET', 'test-secret-value');
+  vi.stubEnv('AUTH_SESSION_SECRET', 'test-secret-value-at-least-32-bytes-long');
   fakeCosmos.seed('users', [
     {
       id: ADMIN_ID,
@@ -333,10 +333,13 @@ describe('GET /api/users includes authProvider', () => {
         expect.objectContaining({
           displayName: 'Alice',
           authProvider: 'local',
+          username: 'Alice',
         }),
         expect.objectContaining({ displayName: 'Admin', authProvider: 'aad' }),
       ]),
     );
+    const entra = users.find((u) => u.displayName === 'Admin');
+    expect(entra).not.toHaveProperty('username');
   });
 });
 

@@ -21,7 +21,7 @@ const ctx = makeContext();
 
 beforeEach(() => {
   fakeCosmos.reset();
-  vi.stubEnv('AUTH_SESSION_SECRET', 'test-secret-value');
+  vi.stubEnv('AUTH_SESSION_SECRET', 'test-secret-value-at-least-32-bytes-long');
 });
 
 afterEach(() => {
@@ -175,6 +175,21 @@ describe('POST /api/auth/login', () => {
     expect((await attempt('Alice', 'correct-horse')).status).toBe(200);
   });
 
+  it('cannot be bypassed with a burst of parallel attempts', async () => {
+    await registerUser();
+    const burst = await Promise.all(
+      Array.from({ length: 20 }, () => attempt('Alice', 'wrong-password')),
+    );
+    const statuses = burst.map((r) => r.status);
+    // Every password check is counted: at most MAX - 1 plain failures get
+    // through before the account locks; the rest are refused.
+    expect(statuses.filter((s) => s === 401).length).toBeLessThan(
+      MAX_FAILED_ATTEMPTS,
+    );
+    expect(statuses.every((s) => s === 401 || s === 429)).toBe(true);
+    expect((await attempt('Alice', 'correct-horse')).status).toBe(429);
+  });
+
   it('resets the failure counter on a successful sign-in', async () => {
     await registerUser();
     await attempt('Alice', 'wrong-password');
@@ -194,6 +209,36 @@ describe('POST /api/auth/logout', () => {
     expect(res.cookies).toEqual([
       expect.objectContaining({ name: SESSION_COOKIE, value: '', maxAge: 0 }),
     ]);
+  });
+});
+
+describe('POST /api/auth/logout revokes the session', () => {
+  it('a copy of the signed-out token no longer authenticates', async () => {
+    const token = sessionToken(await registerUser());
+    const cookies = { [SESSION_COOKIE]: token };
+
+    expect((await logout(makeRequest({ cookies }), ctx)).status).toBe(204);
+
+    expect((await getMe(makeRequest({ cookies }), ctx)).status).toBe(401);
+    expect(
+      readJson(await getSession(makeRequest({ cookies }), ctx)).data,
+    ).toMatchObject({ clientPrincipal: null });
+  });
+
+  it('the account can sign in again afterwards', async () => {
+    const token = sessionToken(await registerUser());
+    await logout(makeRequest({ cookies: { [SESSION_COOKIE]: token } }), ctx);
+
+    const res = await login(
+      makeRequest({ body: { username: 'Alice', password: 'correct-horse' } }),
+      ctx,
+    );
+    const fresh = sessionToken(res);
+    const me = await getMe(
+      makeRequest({ cookies: { [SESSION_COOKIE]: fresh } }),
+      ctx,
+    );
+    expect(me.status).toBe(200);
   });
 });
 

@@ -163,14 +163,14 @@ export async function ensureUser(
     }
 
     const profile: UserProfile = {
-      id: resource.id,
-      displayName: resource.displayName,
+      // Spread first so fields this backfill doesn't manage (authProvider,
+      // and anything added later) survive the replace.
+      ...(resource as UserProfile),
       email: needsEmailBackfill ? email : resource.email,
       role: needsRoleBackfill ? 'anonymous' : resource.role,
       usernameConfirmed: needsConfirmedBackfill
         ? false
         : resource.usernameConfirmed,
-      createdAt: resource.createdAt,
       updatedAt: now,
     };
 

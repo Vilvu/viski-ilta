@@ -116,12 +116,25 @@ export async function listUsers(
       .query('SELECT * FROM c')
       .fetchAll();
 
+    // Native accounts have no email and a self-chosen display name, so the
+    // sign-in username is the only thing that tells them apart reliably.
+    const { resources: credentials } = await getContainer('credentials')
+      .items.query('SELECT c.userId, c.username FROM c')
+      .fetchAll();
+    const usernames = new Map(
+      (credentials as { userId: string; username: string }[]).map((c) => [
+        c.userId,
+        c.username,
+      ]),
+    );
+
     const users = (resources as UserProfile[]).map((u) => ({
       id: u.id,
       email: u.email,
       displayName: u.displayName,
       role: u.role,
       authProvider: u.authProvider === 'local' ? 'local' : 'aad',
+      ...(usernames.has(u.id) && { username: usernames.get(u.id) }),
     }));
 
     return ok(users);

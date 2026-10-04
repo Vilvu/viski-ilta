@@ -41,7 +41,9 @@ atomic and case-insensitive: a duplicate `create` returns a Cosmos 409.
 
 ### Libraries
 
-- `jose` (v5, CommonJS-compatible): JWT signing and verification.
+- `jose` (v5, CommonJS-compatible): JWT signing and verification (HS256). `AUTH_SESSION_SECRET` must be at least
+  32 bytes. A shorter value is treated as unset, because a short HMAC key can be brute-forced offline from one
+  captured token.
 - `bcryptjs`: pure-JS bcrypt (cost 10), so there's no native build step. Passwords are 8–72 bytes (bcrypt's
   input limit).
 - `cookie`: parses the request `Cookie` header. Responses use Azure Functions v4's built-in `cookies` field.
@@ -50,7 +52,11 @@ atomic and case-insensitive: a duplicate `create` returns a Cosmos 409.
 
 Login returns a generic "Invalid username or password" for both an unknown user and a wrong password, and still
 runs a bcrypt compare for unknown users so the timing doesn't reveal which. After 5 consecutive failures the
-account locks for 15 minutes (HTTP 429). Wrong current passwords on `POST /api/auth/change-password` count
+account locks for 15 minutes (HTTP 429). Each password check is counted before bcrypt runs, with a write that is
+conditional on the credentials document's etag. Parallel requests therefore can't all read the same counter
+and get extra guesses: at most 5 checks run per lockout window, however many requests arrive at once. The
+lockout is per account, so someone who knows a username can keep that account locked. That's an accepted
+tradeoff for a small invite-style app. Wrong current passwords on `POST /api/auth/change-password` count
 toward the same lockout, and that endpoint also rejects a temporary password once it has expired, even from a
 session that is still valid. `SameSite=Strict` plus JSON-only request bodies covers CSRF.
 
@@ -72,7 +78,9 @@ session that is still valid. `SameSite=Strict` plus JSON-only request bodies cov
   signed out and clears the cookie.
 - Sessions are JWTs, but each carries the account's `sessionVersion` (stored in `credentials`), and `readSession`
   checks it on every native request with one point read. A password reset or change bumps the version, which
-  signs out that user's other sessions; changing your own password keeps the current session. Rotating
+  signs out that user's other sessions; changing your own password keeps the current session. Signing out
+  (`POST /api/auth/logout`) also bumps it, so a copied cookie stops working right away. The tradeoff is that
+  signing out on one device signs out all of that user's devices. Rotating
   `AUTH_SESSION_SECRET` still signs out every native user at once.
 - Moving to SWA Standard (custom OIDC) or Entra External ID later remains possible. `resolvePrincipal` is the
   single seam to change.

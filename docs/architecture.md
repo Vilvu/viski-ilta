@@ -404,7 +404,7 @@ flowchart LR
 │                                              │
 │  POST /api/auth/register → Create account   │
 │  POST /api/auth/login    → Start session    │
-│  POST /api/auth/logout   → Clear session    │
+│  POST /api/auth/logout   → Revoke session   │
 │  GET  /api/auth/me       → Current session  │
 │  POST /api/auth/change-password             │
 │                                              │
