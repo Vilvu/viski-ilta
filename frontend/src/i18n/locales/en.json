@@ -11,7 +11,45 @@
     "editName": "Edit display name",
     "editDisplayNameTitle": "Edit display name",
     "openMenu": "Open menu",
-    "language": "Language"
+    "language": "Language",
+    "changePassword": "Change password"
+  },
+  "auth": {
+    "signInTitle": "Sign in",
+    "registerTitle": "Create an account",
+    "signInDescription": "Sign in with your username and password.",
+    "registerDescription": "Choose a username and password. An admin grants tasting access after you sign up.",
+    "username": "Username",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "signInSubmit": "Sign in",
+    "registerSubmit": "Create account",
+    "submitting": "Please wait...",
+    "switchToRegister": "No account yet? Create one",
+    "switchToSignIn": "Already have an account? Sign in",
+    "or": "or",
+    "microsoft": "Sign in with Microsoft",
+    "errors": {
+      "usernameInvalid": "Username must be 3–32 characters: letters, numbers, \".\", \"_\" or \"-\".",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "passwordTooLong": "Password is too long.",
+      "passwordMismatch": "Passwords do not match.",
+      "invalidCredentials": "Invalid username or password.",
+      "usernameTaken": "That username is already taken.",
+      "locked": "Too many failed attempts. Try again in 15 minutes.",
+      "generic": "Something went wrong. Please try again.",
+      "tempPasswordExpired": "Your temporary password has expired. Ask an admin to reset it again.",
+      "currentPasswordIncorrect": "Current password is incorrect.",
+      "passwordUnchanged": "The new password must be different from the current one."
+    },
+    "changePasswordTitle": "Change password",
+    "changePasswordDescription": "Choose a new password for your account.",
+    "changePasswordRequired": "Your password was reset by an admin. Choose a new password to continue.",
+    "currentPassword": "Current password",
+    "temporaryPassword": "Temporary password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "changePasswordSubmit": "Change password"
   },
   "common": {
     "loading": "Loading...",
@@ -148,15 +186,34 @@
     "updateFailed": "Failed to update role",
     "cannotChangeSelf": "You cannot change your own role",
     "confirmRoleChange": "Change this user's role to {{role}}?",
+    "remove": "Remove",
+    "removeUser": "Remove {{name}}",
+    "removeFailed": "Failed to remove user",
+    "cannotRemoveSelf": "You cannot remove yourself",
+    "confirmRemove": "Remove {{name}} from the application? Their ratings are kept. They can sign up or sign in again later, but will start without any access.",
+    "usernameAccount": "(username)",
     "columns": {
-      "email": "Email",
+      "email": "Email / username",
       "displayName": "Display Name",
-      "role": "Role"
+      "role": "Role",
+      "actions": "Actions"
     },
     "roles": {
       "anonymous": "Anonymous",
       "taster": "Taster",
       "admin": "Admin"
+    },
+    "resetPassword": "Reset password",
+    "resetPasswordFor": "Reset password for {{name}}",
+    "confirmResetPassword": "Reset the password for {{name}}? Their current password will stop working and you will get a temporary password to give them.",
+    "resetPasswordFailed": "Failed to reset password",
+    "tempPassword": {
+      "title": "Temporary password",
+      "description": "Give this temporary password to {{name}}. They must choose a new password when they sign in. It is shown only once.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "expires": "Expires {{expires}}.",
+      "done": "Done"
     }
   },
   "whiskeyForm": {

@@ -126,5 +126,23 @@ resource usersContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/cont
   }
 }
 
+// Native username/password credentials. id = lowercased username, so a
+// create conflict (409) enforces case-insensitive username uniqueness.
+resource credentialsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+  parent: whiskyDatabase
+  name: 'credentials'
+  properties: {
+    resource: {
+      id: 'credentials'
+      partitionKey: {
+        paths: [
+          '/id'
+        ]
+        kind: 'Hash'
+      }
+    }
+  }
+}
+
 output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
 output cosmosAccountName string = cosmosAccount.name

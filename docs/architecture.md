@@ -137,10 +137,10 @@ sequenceDiagram
 
 | Aspect | Decision |
 |--------|----------|
-| **Provider** | Azure Static Web Apps built-in authentication |
+| **Provider** | Azure Static Web Apps built-in authentication + native username/password accounts |
 | **OAuth Provider** | Microsoft Entra ID |
-| **Session Management** | SWA-managed cookies |
-| **Role Management** | SWA role assignments via `staticwebapp.config.json` |
+| **Session Management** | SWA-managed cookies (Entra ID); app-issued `whisky_session` JWT cookie (native) |
+| **Role Management** | App-managed roles in the Cosmos `users` container |
 
 **Rationale**: Azure Static Web Apps provides built-in authentication with zero additional configuration cost. It handles the OAuth flow, session management, and provides user identity to the API functions via request headers. Entra ID is a pre-configured provider available on the Free SKU, eliminating the need for separate app registration or custom provider setup.
 
@@ -149,6 +149,13 @@ sequenceDiagram
 - AD B2C has a cost per authentication — first 50K/month free, but adds operational overhead
 - SWA built-in auth with Entra ID is simpler, free, and sufficient for MVP
 - Can migrate to AD B2C later if more providers or advanced flows are needed
+
+**Native accounts** (see `docs/adr/0003-native-auth.md`): SWA Free tier has no custom auth providers, so the API
+manages username/password accounts itself. `POST /api/auth/register|login|logout` and `GET /api/auth/me` live in
+`api/src/functions/auth.ts`. Password hashes (bcryptjs) are stored in the `credentials` container, and sessions are
+HS256 JWTs (jose) in an `HttpOnly; Secure; SameSite=Strict` cookie. `resolvePrincipal()` turns either SWA's
+`x-ms-client-principal` header or the session cookie into the same `ClientPrincipal`, so authorization is
+provider-agnostic.
 
 **Admin Role Assignment**: Admin users are configured in the Azure Static Web Apps portal by assigning the `admin` role to specific Entra ID-authenticated user identities. This is managed through the SWA invitation system or via the Azure portal.
 
@@ -250,6 +257,10 @@ api/
 │   │   └── users.ts       — GET/PUT /api/users/me (profile: displayName, email, role)
 │   │                        GET /api/users (admin-only, list all)
 │   │                        PUT /api/users/:id/role (admin-only, assign role)
+│   │                        DELETE /api/users/:id (admin-only, remove user;
+│   │                          ratings/whiskeys kept, native credentials deleted)
+│   │                        POST /api/users/:id/reset-password (admin-only,
+│   │                          temporary password for a native account)
 │   └── lib/
 │       ├── cosmos.ts      — getContainer() — routes to mock or real Cosmos DB
 │       ├── cosmos.mock.ts — MockContainer + seed data (incl. a seeded mock admin user)
@@ -294,7 +305,18 @@ flowchart LR
     B -->|Response| A
 ```
 
-### 4.3 Auth Flow — Microsoft Entra ID Sign-In
+### 4.3 Auth Flow — Native Username/Password Sign-In
+
+```mermaid
+flowchart LR
+    A[Browser /login] -->|POST /api/auth/login| B[Azure Function]
+    B -->|Read credentials by lowercased username| C[Cosmos DB credentials]
+    B -->|bcrypt compare + lockout check| B
+    B -->|Set-Cookie whisky_session JWT| A
+    A -->|Subsequent /api requests carry cookie| D["resolvePrincipal → ClientPrincipal (identityProvider: local)"]
+```
+
+### 4.4 Auth Flow — Microsoft Entra ID Sign-In
 
 ```mermaid
 flowchart LR
@@ -377,6 +399,17 @@ flowchart LR
 │  Cookie-based session management             │
 │  x-ms-client-principal header to API         │
 └─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Native accounts (Azure Functions)          │
+│                                              │
+│  POST /api/auth/register → Create account   │
+│  POST /api/auth/login    → Start session    │
+│  POST /api/auth/logout   → Revoke session   │
+│  GET  /api/auth/me       → Current session  │
+│  POST /api/auth/change-password             │
+│                                              │
+│  whisky_session HttpOnly JWT cookie          │
+└─────────────────────────────────────────────┘
 ```
 
 ### 6.2 Authorization Model
@@ -423,7 +456,9 @@ rg-whiskyapp-dev
         ├── Container: events         (pk: /id)
         ├── Container: whiskeys       (pk: /id)
         ├── Container: eventWhiskeys  (pk: /eventId)
-        └── Container: ratings        (pk: /eventId)
+        ├── Container: ratings        (pk: /eventId)
+        ├── Container: users          (pk: /id)
+        └── Container: credentials    (pk: /id = lowercased username)
 ```
 
 ### 7.2 Estimated Monthly Cost — MVP

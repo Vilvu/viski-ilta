@@ -3,6 +3,8 @@ export interface User {
   email: string;
   name: string;
   role: 'admin' | 'taster' | 'user' | 'anonymous';
+  // Identity provider: 'aad' (SWA / Entra ID) or 'local' (native account).
+  provider?: string;
 }
 
 export interface Event {
@@ -77,6 +79,15 @@ export interface AdminUser {
   email: string;
   displayName: string;
   role: AppRole;
+  // 'local' = username/password account (its password can be reset).
+  authProvider?: 'aad' | 'local';
+  // Sign-in username of a 'local' account (they have no email).
+  username?: string;
+}
+
+export interface TemporaryPassword {
+  temporaryPassword: string;
+  expiresAt: string;
 }
 
 export interface Rating {

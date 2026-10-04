@@ -42,6 +42,10 @@ class MockContainer {
       },
       create: async (item: any) => {
         const container = mockStorage.get(this.containerName)!;
+        if (container.has(item.id)) {
+          // Match Cosmos: creating a duplicate id is a 409 conflict.
+          throw Object.assign(new Error('Conflict'), { code: 409 });
+        }
         container.set(item.id, { ...item });
         return { resource: item };
       },
@@ -605,6 +609,7 @@ mockStorage.set('whiskeys', new Map());
 mockStorage.set('ratings', new Map());
 mockStorage.set('eventWhiskeys', new Map());
 mockStorage.set('users', new Map());
+mockStorage.set('credentials', new Map());
 initializeSeedData();
 
 export function getMockContainer(containerName: string): MockContainer {

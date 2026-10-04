@@ -7,6 +7,7 @@
     "COSMOS_KEY": "your-cosmos-key",
     "COSMOS_DATABASE": "whiskyapp",
     "USE_COSMOS_MOCK": "true",
+    "AUTH_SESSION_SECRET": "replace-with-a-long-random-string",
     "BLOB_STORAGE_CONNECTION_STRING": "",
     "USE_BLOB_MOCK": "true",
     "ANTHROPIC_API_KEY": ""

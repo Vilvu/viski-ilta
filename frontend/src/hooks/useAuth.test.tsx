@@ -187,4 +187,103 @@ describe('useAuth', () => {
     expect(result.current.isTaster).toBe(false);
     expect(result.current.isAuthenticated).toBe(true);
   });
+
+  it('falls back to the native session when SWA reports no principal', async () => {
+    server.use(
+      http.get('/.auth/me', () => HttpResponse.json({ clientPrincipal: null })),
+      http.get('/api/auth/me', () =>
+        HttpResponse.json({
+          clientPrincipal: {
+            userId: 'local:1',
+            userRoles: ['authenticated'],
+            claims: [{ typ: 'name', val: 'alice' }],
+            identityProvider: 'local',
+            userDetails: 'alice',
+          },
+        }),
+      ),
+      http.get('/api/users/me', () =>
+        HttpResponse.json({
+          data: {
+            displayName: 'alice',
+            email: '',
+            role: 'taster',
+            usernameConfirmed: true,
+          },
+        }),
+      ),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.isTaster).toBe(true);
+    expect(result.current.user).toMatchObject({
+      id: 'local:1',
+      name: 'alice',
+      email: '',
+      provider: 'local',
+    });
+  });
+
+  it('falls back to the native session when /.auth/me is unavailable', async () => {
+    server.use(
+      http.get(
+        '/.auth/me',
+        () => new HttpResponse('not json', { status: 404 }),
+      ),
+      http.get('/api/auth/me', () =>
+        HttpResponse.json({ clientPrincipal: null }),
+      ),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it('resolves anonymous when the native session check fails', async () => {
+    server.use(
+      http.get('/.auth/me', () => HttpResponse.json({ clientPrincipal: null })),
+      http.get('/api/auth/me', () => new HttpResponse(null, { status: 500 })),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it('treats a must-change-password session as not signed in', async () => {
+    let profileRequested = false;
+    server.use(
+      http.get('/.auth/me', () => HttpResponse.json({ clientPrincipal: null })),
+      http.get('/api/auth/me', () =>
+        HttpResponse.json({
+          clientPrincipal: {
+            userId: 'local:1',
+            userRoles: ['authenticated'],
+            claims: [{ typ: 'name', val: 'alice' }],
+            identityProvider: 'local',
+            userDetails: 'alice',
+          },
+          mustChangePassword: true,
+        }),
+      ),
+      http.get('/api/users/me', () => {
+        profileRequested = true;
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.mustChangePassword).toBe(true);
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(result.current.user?.name).toBe('alice');
+    expect(profileRequested).toBe(false);
+  });
 });

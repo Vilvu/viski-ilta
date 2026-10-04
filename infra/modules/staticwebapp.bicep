@@ -9,6 +9,8 @@ param cosmosDatabase string
 param storageAccountName string
 @secure()
 param anthropicApiKey string
+@secure()
+param authSessionSecret string
 
 resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
@@ -43,6 +45,12 @@ var aiSettings = empty(anthropicApiKey) ? {} : {
   ANTHROPIC_API_KEY: anthropicApiKey
 }
 
+// Signing key for native username/password session cookies. Like
+// ANTHROPIC_API_KEY, a deploy without it removes a previously set value.
+var authSettings = empty(authSessionSecret) ? {} : {
+  AUTH_SESSION_SECRET: authSessionSecret
+}
+
 // Only deploy app settings when cosmosKey is provided.
 // Deploying with an empty key would silently overwrite a previously correct key.
 // Note: this resource replaces the full app settings set, so a deploy without
@@ -55,7 +63,7 @@ resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = if (!empty(
     COSMOS_KEY: cosmosKey
     COSMOS_DATABASE: cosmosDatabase
     BLOB_STORAGE_CONNECTION_STRING: blobConnectionString
-  }, aiSettings)
+  }, aiSettings, authSettings)
 }
 
 output swaDefaultHostname string = swa.properties.defaultHostname

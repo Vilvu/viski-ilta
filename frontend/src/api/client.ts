@@ -12,8 +12,11 @@ export const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      window.location.href = '/.auth/login/aad';
+    // Native sign-in endpoints report bad credentials as 401; let the login
+    // form show those inline instead of redirecting.
+    const isAuthEndpoint = error.config?.url?.startsWith('/auth/');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   },

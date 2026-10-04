@@ -2,6 +2,7 @@
 import './polyfill';
 
 // Function registrations
+import './functions/auth';
 import './functions/events';
 import './functions/ratings';
 import './functions/users';

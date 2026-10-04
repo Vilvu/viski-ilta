@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import UsernameSetupModal from './UsernameSetupModal';
 import EditDisplayNameModal from './EditDisplayNameModal';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { authApi } from '@/api/auth';
 import styles from './Layout.module.css';
 
 export default function Layout() {
   const { t } = useTranslation();
-  const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
+  const { user, isAuthenticated, isLoading, isAdmin, mustChangePassword } =
+    useAuth();
+  const location = useLocation();
   const {
     data: profile,
     isLoading: profileLoading,
@@ -41,6 +44,24 @@ export default function Layout() {
   }, [closeMenu]);
 
   const displayName = profile?.displayName ?? user?.name ?? '';
+  const isNativeAccount = user?.provider === 'local';
+
+  // Entra ID sessions are owned by SWA (/.auth/logout); native sessions are
+  // an app cookie that only the API can clear.
+  const handleNativeSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    closeMenu();
+    try {
+      await authApi.logout();
+    } finally {
+      window.location.assign('/');
+    }
+  };
+
+  // Signed in with a temporary password: nothing else works until it's changed.
+  if (mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
 
   return (
     <div className={styles.layout}>
@@ -69,16 +90,36 @@ export default function Layout() {
                   >
                     ✏️
                   </button>
-                  <a href="/.auth/logout">{t('nav.signOut')}</a>
+                  {isNativeAccount && (
+                    <Link
+                      to="/change-password"
+                      className={styles.editBtn}
+                      title={t('nav.changePassword')}
+                      aria-label={t('nav.changePassword')}
+                    >
+                      🔑
+                    </Link>
+                  )}
+                  <a
+                    href="/.auth/logout"
+                    onClick={isNativeAccount ? handleNativeSignOut : undefined}
+                  >
+                    {t('nav.signOut')}
+                  </a>
                 </div>
+              ) : mustChangePassword ? (
+                // Half signed in with a temporary password: allow backing out.
+                <a href="/" onClick={handleNativeSignOut}>
+                  {t('nav.signOut')}
+                </a>
               ) : (
                 <>
                   {!isLoading && isAuthenticated && (
                     <span className={styles.userName}>{displayName}</span>
                   )}
-                  <a href="/.auth/login/aad" className={styles.signInBtn}>
+                  <Link to="/login" className={styles.signInBtn}>
                     {t('nav.signIn')}
-                  </a>
+                  </Link>
                 </>
               ))}
             <LanguageSwitcher />
@@ -130,19 +171,38 @@ export default function Layout() {
                     >
                       {t('nav.editName')}
                     </button>
-                    <a href="/.auth/logout" onClick={closeMenu} role="menuitem">
+                    {isNativeAccount && (
+                      <Link
+                        to="/change-password"
+                        onClick={closeMenu}
+                        role="menuitem"
+                      >
+                        {t('nav.changePassword')}
+                      </Link>
+                    )}
+                    <a
+                      href="/.auth/logout"
+                      onClick={
+                        isNativeAccount ? handleNativeSignOut : closeMenu
+                      }
+                      role="menuitem"
+                    >
                       {t('nav.signOut')}
                     </a>
                   </>
+                ) : mustChangePassword ? (
+                  <a href="/" onClick={handleNativeSignOut} role="menuitem">
+                    {t('nav.signOut')}
+                  </a>
                 ) : (
-                  <a
-                    href="/.auth/login/aad"
+                  <Link
+                    to="/login"
                     className={styles.signInBtn}
                     onClick={closeMenu}
                     role="menuitem"
                   >
                     {t('nav.signIn')}
-                  </a>
+                  </Link>
                 ))}
             </div>
           </>

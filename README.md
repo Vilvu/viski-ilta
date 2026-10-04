@@ -60,7 +60,7 @@ npm run typecheck     # typecheck production source and test files in both packa
 
 Or per package: `npm test` / `npm run test:watch` / `npm run test:coverage` inside `api/` or `frontend/`. API tests
 live under `api/test/`; frontend tests are colocated with their source as `*.test.ts(x)`. See the Testing section in
-[claude.md](claude.md) for the mocking conventions (Cosmos fake, MSW handlers, provider wrapper). CI
+[CLAUDE.md](CLAUDE.md) for the mocking conventions (Cosmos fake, MSW handlers, provider wrapper). CI
 (`.github/workflows/ci.yml`) runs lint, typecheck, and coverage-gated tests for both packages on every PR.
 
 ### Deployment

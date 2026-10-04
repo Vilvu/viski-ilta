@@ -6,13 +6,24 @@ import {
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
 import {
+  generateTemporaryPassword,
+  hashPassword,
+  TEMP_PASSWORD_TTL_HOURS,
+} from '../lib/passwords';
+import {
   requireAuth,
   requireAdmin,
   ensureUser,
   AppRole,
   UserProfile,
 } from '../lib/auth';
-import { ok, badRequest, notFound, handleError } from '../lib/response';
+import {
+  ok,
+  noContent,
+  badRequest,
+  notFound,
+  handleError,
+} from '../lib/response';
 
 const ALLOWED_ROLES: AppRole[] = ['anonymous', 'taster', 'admin'];
 
@@ -36,7 +47,7 @@ export async function getMe(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAuth(req);
+    const principal = await requireAuth(req);
     const profile = await ensureUser(principal);
 
     return ok({
@@ -56,7 +67,7 @@ export async function updateMe(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAuth(req);
+    const principal = await requireAuth(req);
     const body = (await req.json()) as Record<string, unknown>;
 
     if (!body.displayName || typeof body.displayName !== 'string') {
@@ -105,11 +116,25 @@ export async function listUsers(
       .query('SELECT * FROM c')
       .fetchAll();
 
+    // Native accounts have no email and a self-chosen display name, so the
+    // sign-in username is the only thing that tells them apart reliably.
+    const { resources: credentials } = await getContainer('credentials')
+      .items.query('SELECT c.userId, c.username FROM c')
+      .fetchAll();
+    const usernames = new Map(
+      (credentials as { userId: string; username: string }[]).map((c) => [
+        c.userId,
+        c.username,
+      ]),
+    );
+
     const users = (resources as UserProfile[]).map((u) => ({
       id: u.id,
       email: u.email,
       displayName: u.displayName,
       role: u.role,
+      authProvider: u.authProvider === 'local' ? 'local' : 'aad',
+      ...(usernames.has(u.id) && { username: usernames.get(u.id) }),
     }));
 
     return ok(users);
@@ -216,6 +241,116 @@ export async function setUserRole(
   }
 }
 
+// DELETE /api/users/{id} (admin-only)
+// Removes the user's profile and, for native accounts, their credentials so
+// they can no longer sign in (and the username becomes available again).
+// Ratings and whiskeys the user created are deliberately kept. An Entra ID
+// user who signs in again is re-provisioned as a new 'anonymous' user.
+export async function deleteUser(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const { principal } = await requireAdmin(req);
+    const { id } = req.params;
+
+    if (id === principal.userId) {
+      return badRequest('You cannot remove your own account');
+    }
+
+    const usersContainer = getContainer('users');
+    const { resource: target } = await usersContainer.item(id, id).read();
+    if (!target) {
+      return notFound('User not found');
+    }
+
+    // Remove credentials first: if the profile delete then fails, the user
+    // still can't sign in and an admin can simply retry the removal.
+    const credentialsContainer = getContainer('credentials');
+    const { resources: credentials } = await credentialsContainer.items
+      .query({
+        query: 'SELECT c.id FROM c WHERE c.userId = @userId',
+        parameters: [{ name: '@userId', value: id }],
+      })
+      .fetchAll();
+    for (const { id: credentialsId } of credentials as { id: string }[]) {
+      await credentialsContainer.item(credentialsId, credentialsId).delete();
+    }
+
+    await usersContainer.item(id, id).delete();
+    return noContent();
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+// POST /api/users/{id}/reset-password (admin-only)
+// Replaces a native account's password with a random temporary one that
+// expires after TEMP_PASSWORD_TTL_HOURS and must be changed at next sign-in.
+// The temporary password is returned once, in this response only.
+export async function resetUserPassword(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const { principal } = await requireAdmin(req);
+    const { id } = req.params;
+
+    if (id === principal.userId) {
+      return badRequest('Use Change password to change your own password');
+    }
+
+    const container = getContainer('credentials');
+    const { resources } = await container.items
+      .query({
+        query: 'SELECT c.id, c.sessionVersion FROM c WHERE c.userId = @userId',
+        parameters: [{ name: '@userId', value: id }],
+      })
+      .fetchAll();
+    const found = (resources as { id: string; sessionVersion?: number }[])[0];
+    const credentialsId = found?.id;
+    if (!credentialsId) {
+      // Entra ID users have no password here; their sign-in is Microsoft's.
+      return notFound('No username/password account found for this user');
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + TEMP_PASSWORD_TTL_HOURS * 3_600_000,
+    ).toISOString();
+
+    await container.item(credentialsId, credentialsId).patch([
+      {
+        op: 'set',
+        path: '/passwordHash',
+        value: await hashPassword(temporaryPassword),
+      },
+      { op: 'set', path: '/mustChangePassword', value: true },
+      { op: 'set', path: '/tempPasswordExpiresAt', value: expiresAt },
+      // A reset is often the fix for a locked-out user.
+      { op: 'set', path: '/failedAttempts', value: 0 },
+      { op: 'set', path: '/lockedUntil', value: null },
+      // Sign out the user's existing sessions (and anyone else's who had
+      // the old password).
+      {
+        op: 'set',
+        path: '/sessionVersion',
+        value: (found.sessionVersion ?? 0) + 1,
+      },
+      { op: 'set', path: '/updatedAt', value: now.toISOString() },
+    ]);
+
+    const response = ok({ temporaryPassword, expiresAt });
+    return {
+      ...response,
+      headers: { ...response.headers, 'Cache-Control': 'no-store' },
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 app.http('getMe', {
   methods: ['GET'],
   authLevel: 'anonymous',
@@ -242,4 +377,18 @@ app.http('setUserRole', {
   authLevel: 'anonymous',
   route: 'users/{id}/role',
   handler: setUserRole,
+});
+
+app.http('deleteUser', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'users/{id}',
+  handler: deleteUser,
+});
+
+app.http('resetUserPassword', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'users/{id}/reset-password',
+  handler: resetUserPassword,
 });

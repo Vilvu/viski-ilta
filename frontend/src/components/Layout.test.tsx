@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/server';
@@ -11,6 +12,10 @@ function renderLayout() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<div>Home</div>} />
+        <Route
+          path="change-password"
+          element={<div>Change password page</div>}
+        />
       </Route>
     </Routes>,
     { route: '/' },
@@ -61,6 +66,10 @@ describe('Layout navigation', () => {
         screen.getByRole('link', { name: /sign in/i }),
       ).toBeInTheDocument(),
     );
+    expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute(
+      'href',
+      '/login',
+    );
     expect(screen.queryByText(/user management/i)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: /sign out/i }),
@@ -99,5 +108,128 @@ describe('Layout navigation', () => {
       expect(screen.getByText(/sign out/i)).toBeInTheDocument(),
     );
     expect(screen.queryByText(/choose display name/i)).not.toBeInTheDocument();
+  });
+
+  describe('native (local) accounts', () => {
+    const originalLocation = window.location;
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it('signs out through the API instead of /.auth/logout', async () => {
+      const assign = vi.fn();
+      Object.defineProperty(window, 'location', {
+        value: { ...originalLocation, assign },
+        writable: true,
+        configurable: true,
+      });
+      let loggedOut = false;
+      server.use(
+        http.get('/api/auth/me', () =>
+          HttpResponse.json({
+            clientPrincipal: {
+              userId: 'local:1',
+              userRoles: ['authenticated'],
+              claims: [{ typ: 'name', val: 'alice' }],
+              identityProvider: 'local',
+              userDetails: 'alice',
+            },
+          }),
+        ),
+        http.get('/api/users/me', () =>
+          HttpResponse.json({
+            data: {
+              displayName: 'alice',
+              email: '',
+              role: 'anonymous',
+              usernameConfirmed: true,
+            },
+          }),
+        ),
+        http.post('/api/auth/logout', () => {
+          loggedOut = true;
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+
+      renderLayout();
+      const signOut = await screen.findByText(/sign out/i);
+      expect(screen.getAllByText('alice').length).toBeGreaterThan(0);
+
+      await userEvent.click(signOut);
+
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
+      expect(loggedOut).toBe(true);
+    });
+  });
+
+  describe('password changes for native accounts', () => {
+    const nativePrincipal = {
+      userId: 'local:1',
+      userRoles: ['authenticated'],
+      claims: [{ typ: 'name', val: 'alice' }],
+      identityProvider: 'local',
+      userDetails: 'alice',
+    };
+
+    it('forces a must-change-password session onto the change-password page', async () => {
+      server.use(
+        http.get('/api/auth/me', () =>
+          HttpResponse.json({
+            clientPrincipal: nativePrincipal,
+            mustChangePassword: true,
+          }),
+        ),
+      );
+      renderLayout();
+      expect(
+        await screen.findByText('Change password page'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Home')).not.toBeInTheDocument();
+      // They can back out, but aren't offered "Sign in".
+      expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /sign in/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('offers a change-password link to native users only', async () => {
+      server.use(
+        http.get('/api/auth/me', () =>
+          HttpResponse.json({
+            clientPrincipal: nativePrincipal,
+            mustChangePassword: false,
+          }),
+        ),
+        http.get('/api/users/me', () =>
+          HttpResponse.json({
+            data: {
+              displayName: 'alice',
+              email: '',
+              role: 'taster',
+              usernameConfirmed: true,
+            },
+          }),
+        ),
+      );
+      renderLayout();
+      expect(
+        await screen.findByRole('link', { name: 'Change password' }),
+      ).toHaveAttribute('href', '/change-password');
+    });
+
+    it('does not offer it to Microsoft users', async () => {
+      mockAuthenticated('taster');
+      renderLayout();
+      await screen.findByText(/sign out/i);
+      expect(
+        screen.queryByRole('link', { name: 'Change password' }),
+      ).not.toBeInTheDocument();
+    });
   });
 });
