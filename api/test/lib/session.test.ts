@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SignJWT } from 'jose';
+import { fakeCosmos } from '../helpers/mockCosmos';
 import { makeRequest } from '../helpers/request';
+
+vi.mock('../../src/lib/cosmos', () => ({
+  getContainer: (name: string) => fakeCosmos.getContainer(name),
+}));
+
 import {
   createSessionToken,
   verifySessionToken,
@@ -15,7 +21,22 @@ import {
 
 const SECRET = 'test-secret-value';
 
+function seedCredentials(sessionVersion = 0, userId = 'local:1') {
+  fakeCosmos.seed('credentials', [
+    {
+      id: 'alice',
+      username: 'Alice',
+      userId,
+      passwordHash: 'hash',
+      failedAttempts: 0,
+      lockedUntil: null,
+      sessionVersion,
+    },
+  ]);
+}
+
 beforeEach(() => {
+  fakeCosmos.reset();
   vi.stubEnv('AUTH_SESSION_SECRET', SECRET);
 });
 
@@ -32,6 +53,7 @@ describe('session tokens', () => {
     await expect(verifySessionToken(token)).resolves.toEqual({
       userId: 'local:1',
       username: 'Alice',
+      sessionVersion: 0,
     });
   });
 
@@ -44,6 +66,7 @@ describe('session tokens', () => {
     await expect(verifySessionToken(token)).resolves.toEqual({
       userId: 'local:1',
       username: 'Alice',
+      sessionVersion: 0,
       mustChangePassword: true,
     });
   });
@@ -107,6 +130,7 @@ describe('getSessionPrincipal', () => {
   });
 
   it('builds a local ClientPrincipal from a valid cookie', async () => {
+    seedCredentials();
     const token = await createSessionToken({
       userId: 'local:1',
       username: 'Alice',
@@ -124,6 +148,7 @@ describe('getSessionPrincipal', () => {
 
 describe('restricted (must-change-password) sessions', () => {
   it('readSession returns them but getSessionPrincipal does not', async () => {
+    seedCredentials();
     const token = await createSessionToken({
       userId: 'local:1',
       username: 'Alice',
@@ -134,6 +159,58 @@ describe('restricted (must-change-password) sessions', () => {
       mustChangePassword: true,
     });
     await expect(getSessionPrincipal(req)).resolves.toBeNull();
+  });
+});
+
+describe('session revocation', () => {
+  async function aliceRequest(sessionVersion?: number) {
+    const token = await createSessionToken({
+      userId: 'local:1',
+      username: 'Alice',
+      sessionVersion,
+    });
+    return makeRequest({ cookies: { [SESSION_COOKIE]: token } });
+  }
+
+  it('accepts a session issued at the current version', async () => {
+    seedCredentials(3);
+    await expect(readSession(await aliceRequest(3))).resolves.toMatchObject({
+      sessionVersion: 3,
+    });
+  });
+
+  it('rejects a session issued before a password reset/change', async () => {
+    seedCredentials(1);
+    await expect(readSession(await aliceRequest(0))).resolves.toBeNull();
+    await expect(
+      getSessionPrincipal(await aliceRequest(0)),
+    ).resolves.toBeNull();
+  });
+
+  it('rejects a session whose credentials were deleted', async () => {
+    await expect(readSession(await aliceRequest())).resolves.toBeNull();
+  });
+
+  it('rejects a session when the username now belongs to someone else', async () => {
+    seedCredentials(0, 'local:someone-else');
+    await expect(readSession(await aliceRequest())).resolves.toBeNull();
+  });
+
+  it('treats tokens and credentials without a version as version 0', async () => {
+    fakeCosmos.seed('credentials', [
+      { id: 'alice', username: 'Alice', userId: 'local:1', passwordHash: 'h' },
+    ]);
+    const legacy = await new SignJWT({ name: 'Alice' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject('local:1')
+      .setIssuer('whisky-app')
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(new TextEncoder().encode(SECRET));
+    const req = makeRequest({ cookies: { [SESSION_COOKIE]: legacy } });
+    await expect(getSessionPrincipal(req)).resolves.toMatchObject({
+      userId: 'local:1',
+    });
   });
 });
 

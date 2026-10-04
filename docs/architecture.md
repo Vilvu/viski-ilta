@@ -259,6 +259,8 @@ api/
 │   │                        PUT /api/users/:id/role (admin-only, assign role)
 │   │                        DELETE /api/users/:id (admin-only, remove user;
 │   │                          ratings/whiskeys kept, native credentials deleted)
+│   │                        POST /api/users/:id/reset-password (admin-only,
+│   │                          temporary password for a native account)
 │   └── lib/
 │       ├── cosmos.ts      — getContainer() — routes to mock or real Cosmos DB
 │       ├── cosmos.mock.ts — MockContainer + seed data (incl. a seeded mock admin user)
@@ -404,6 +406,7 @@ flowchart LR
 │  POST /api/auth/login    → Start session    │
 │  POST /api/auth/logout   → Clear session    │
 │  GET  /api/auth/me       → Current session  │
+│  POST /api/auth/change-password             │
 │                                              │
 │  whisky_session HttpOnly JWT cookie          │
 └─────────────────────────────────────────────┘

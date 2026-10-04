@@ -2,6 +2,7 @@ import type { Cookie, HttpRequest } from '@azure/functions';
 import { parse as parseCookies } from 'cookie';
 import { SignJWT, jwtVerify } from 'jose';
 import type { ClientPrincipal } from './auth';
+import { getContainer } from './cosmos';
 
 /**
  * App-managed sessions for native (username/password) accounts.
@@ -35,6 +36,9 @@ export interface SessionClaims {
   // session can only change the password (POST /api/auth/change-password);
   // getSessionPrincipal ignores it, so every other endpoint sees no user.
   mustChangePassword?: boolean;
+  // Must match the account's current credentials.sessionVersion. Resetting
+  // or changing the password bumps it, which signs out older sessions.
+  sessionVersion?: number;
 }
 
 export async function createSessionToken(
@@ -44,9 +48,11 @@ export async function createSessionToken(
   if (!secret) {
     throw new Error('AUTH_SESSION_SECRET is not configured');
   }
-  const payload = claims.mustChangePassword
-    ? { name: claims.username, pwc: true }
-    : { name: claims.username };
+  const payload = {
+    name: claims.username,
+    sv: claims.sessionVersion ?? 0,
+    ...(claims.mustChangePassword && { pwc: true }),
+  };
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(claims.userId)
@@ -74,6 +80,7 @@ export async function verifySessionToken(
     return {
       userId: payload.sub,
       username: payload.name,
+      sessionVersion: typeof payload.sv === 'number' ? payload.sv : 0,
       ...(payload.pwc === true && { mustChangePassword: true }),
     };
   } catch {
@@ -116,8 +123,11 @@ export function principalFromClaims(claims: SessionClaims): ClientPrincipal {
 }
 
 /**
- * Reads the session cookie, including restricted (must-change-password)
- * sessions. Only the auth endpoints should use this directly.
+ * Reads and validates the session cookie, including restricted
+ * (must-change-password) sessions. Only the auth endpoints should use this
+ * directly. A session is rejected when its account's credentials are gone,
+ * now belong to a different user (username re-registered), or have a newer
+ * sessionVersion (password reset or changed since it was issued).
  */
 export async function readSession(
   request: HttpRequest,
@@ -128,7 +138,21 @@ export async function readSession(
   const token = parseCookies(header)[SESSION_COOKIE];
   if (!token) return null;
 
-  return verifySessionToken(token);
+  const claims = await verifySessionToken(token);
+  if (!claims) return null;
+
+  const id = claims.username.toLowerCase();
+  const { resource: credentials } = await getContainer('credentials')
+    .item(id, id)
+    .read();
+  if (
+    !credentials ||
+    credentials.userId !== claims.userId ||
+    (credentials.sessionVersion ?? 0) !== (claims.sessionVersion ?? 0)
+  ) {
+    return null;
+  }
+  return claims;
 }
 
 /**

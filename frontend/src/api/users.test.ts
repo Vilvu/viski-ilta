@@ -72,6 +72,24 @@ describe('usersApi', () => {
     expect(calledPath).toBe('/api/users/local%3Aabc');
   });
 
+  it('resetPassword: POST /users/:id/reset-password', async () => {
+    let calledPath = '';
+    server.use(
+      http.post('/api/users/:id/reset-password', ({ request }) => {
+        calledPath = new URL(request.url).pathname;
+        return HttpResponse.json({
+          data: {
+            temporaryPassword: 'Abcd2345efgh',
+            expiresAt: '2026-10-05T12:00:00Z',
+          },
+        });
+      }),
+    );
+    const result = await usersApi.resetPassword('local:abc');
+    expect(calledPath).toBe('/api/users/local%3Aabc/reset-password');
+    expect(result.temporaryPassword).toBe('Abcd2345efgh');
+  });
+
   it('setUserRole: PUT /users/:id/role with { role }', async () => {
     let capturedBody: unknown;
     server.use(

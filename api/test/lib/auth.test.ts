@@ -77,6 +77,14 @@ describe('resolvePrincipal (native session fallback)', () => {
   });
 
   it('resolves a local principal from the session cookie when no header is present', async () => {
+    fakeCosmos.seed('credentials', [
+      {
+        id: 'alice',
+        username: 'Alice',
+        userId: 'local:abc',
+        passwordHash: 'h',
+      },
+    ]);
     const token = await createSessionToken({
       userId: 'local:abc',
       username: 'Alice',

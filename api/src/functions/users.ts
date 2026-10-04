@@ -290,11 +290,12 @@ export async function resetUserPassword(
     const container = getContainer('credentials');
     const { resources } = await container.items
       .query({
-        query: 'SELECT c.id FROM c WHERE c.userId = @userId',
+        query: 'SELECT c.id, c.sessionVersion FROM c WHERE c.userId = @userId',
         parameters: [{ name: '@userId', value: id }],
       })
       .fetchAll();
-    const credentialsId = (resources as { id: string }[])[0]?.id;
+    const found = (resources as { id: string; sessionVersion?: number }[])[0];
+    const credentialsId = found?.id;
     if (!credentialsId) {
       // Entra ID users have no password here; their sign-in is Microsoft's.
       return notFound('No username/password account found for this user');
@@ -317,6 +318,13 @@ export async function resetUserPassword(
       // A reset is often the fix for a locked-out user.
       { op: 'set', path: '/failedAttempts', value: 0 },
       { op: 'set', path: '/lockedUntil', value: null },
+      // Sign out the user's existing sessions (and anyone else's who had
+      // the old password).
+      {
+        op: 'set',
+        path: '/sessionVersion',
+        value: (found.sessionVersion ?? 0) + 1,
+      },
       { op: 'set', path: '/updatedAt', value: now.toISOString() },
     ]);
 

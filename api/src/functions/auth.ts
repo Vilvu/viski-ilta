@@ -50,6 +50,8 @@ export interface Credentials {
   // replaced on the next sign-in.
   mustChangePassword?: boolean;
   tempPasswordExpiresAt?: string | null;
+  // Embedded in session tokens; bumped to sign out existing sessions.
+  sessionVersion?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -264,6 +266,7 @@ export async function login(
       userId: credentials.userId,
       username: credentials.username,
       mustChangePassword,
+      sessionVersion: credentials.sessionVersion ?? 0,
     });
     return {
       ...ok({
@@ -333,7 +336,9 @@ export async function changePassword(
 ): Promise<HttpResponseInit> {
   try {
     const session = await readSession(req);
-    if (!session) return unauthorized();
+    if (!session) {
+      return { ...unauthorized(), cookies: [clearedSessionCookie()] };
+    }
 
     let body: { currentPassword?: unknown; newPassword?: unknown } = {};
     try {
@@ -355,8 +360,7 @@ export async function changePassword(
     const container = getContainer('credentials');
     const { resource } = await container.item(id, id).read();
     const credentials = resource as Credentials | undefined;
-    // The session must still belong to this account (it may have been
-    // removed, or the username re-registered by someone else).
+    // readSession already checked this; the account may have changed since.
     if (!credentials || credentials.userId !== session.userId) {
       return { ...unauthorized(), cookies: [clearedSessionCookie()] };
     }
@@ -365,6 +369,7 @@ export async function changePassword(
       return badRequest('Current password is incorrect');
     }
 
+    const sessionVersion = (credentials.sessionVersion ?? 0) + 1;
     await container.item(id, id).patch([
       {
         op: 'set',
@@ -375,12 +380,15 @@ export async function changePassword(
       { op: 'set', path: '/tempPasswordExpiresAt', value: null },
       { op: 'set', path: '/failedAttempts', value: 0 },
       { op: 'set', path: '/lockedUntil', value: null },
+      // Signs out every other session (e.g. other devices).
+      { op: 'set', path: '/sessionVersion', value: sessionVersion },
       { op: 'set', path: '/updatedAt', value: new Date().toISOString() },
     ]);
 
     const token = await createSessionToken({
       userId: credentials.userId,
       username: credentials.username,
+      sessionVersion,
     });
     return { status: 204, cookies: [sessionCookie(token)] };
   } catch (error) {

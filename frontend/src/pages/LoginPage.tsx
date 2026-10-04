@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authApi } from '@/api/auth';
+import { validateNewPassword } from '@/lib/password';
 import styles from './LoginPage.module.css';
 
 type Mode = 'signIn' | 'register';
 
 // Mirrors the server-side rules in api/src/functions/auth.ts.
 const USERNAME_PATTERN = /^[A-Za-z0-9_.-]{3,32}$/;
-const MIN_PASSWORD_LENGTH = 8;
-const MAX_PASSWORD_BYTES = 72;
 
 function errorKeyForStatus(status: number | undefined, mode: Mode): string {
   if (status === 401) return 'auth.errors.invalidCredentials';
@@ -43,14 +42,7 @@ export default function LoginPage() {
       return username && password ? null : 'auth.errors.invalidCredentials';
     }
     if (!USERNAME_PATTERN.test(username)) return 'auth.errors.usernameInvalid';
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      return 'auth.errors.passwordTooShort';
-    }
-    if (new TextEncoder().encode(password).length > MAX_PASSWORD_BYTES) {
-      return 'auth.errors.passwordTooLong';
-    }
-    if (password !== confirmPassword) return 'auth.errors.passwordMismatch';
-    return null;
+    return validateNewPassword(password, confirmPassword);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,17 +58,25 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const credentials = { username: username.trim(), password };
+      let mustChangePassword = false;
       if (isRegister) {
         await authApi.register(credentials);
       } else {
-        await authApi.login(credentials);
+        ({ mustChangePassword = false } = await authApi.login(credentials));
       }
       // Full reload so identity and all cached queries pick up the session.
-      window.location.assign('/');
+      window.location.assign(mustChangePassword ? '/change-password' : '/');
     } catch (err) {
-      const status = (err as { response?: { status?: number } })?.response
-        ?.status;
-      setError(t(errorKeyForStatus(status, mode)));
+      const response = (
+        err as { response?: { status?: number; data?: { message?: string } } }
+      )?.response;
+      setError(
+        t(
+          /expired/i.test(response?.data?.message ?? '')
+            ? 'auth.errors.tempPasswordExpired'
+            : errorKeyForStatus(response?.status, mode),
+        ),
+      );
       setSubmitting(false);
     }
   };

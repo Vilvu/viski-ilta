@@ -79,6 +79,13 @@ export interface AdminUser {
   email: string;
   displayName: string;
   role: AppRole;
+  // 'local' = username/password account (its password can be reset).
+  authProvider?: 'aad' | 'local';
+}
+
+export interface TemporaryPassword {
+  temporaryPassword: string;
+  expiresAt: string;
 }
 
 export interface Rating {

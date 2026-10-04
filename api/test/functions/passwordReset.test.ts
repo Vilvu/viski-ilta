@@ -339,3 +339,52 @@ describe('GET /api/users includes authProvider', () => {
     );
   });
 });
+
+describe('existing sessions', () => {
+  it('a reset signs out every existing session of the user', async () => {
+    const userId = await registerAlice();
+    const before = sessionToken(await signIn('alice', 'original-pass'));
+    expect((await getMe(withSession(before), ctx)).status).toBe(200);
+
+    await resetAs(admin, userId);
+
+    expect((await getMe(withSession(before), ctx)).status).toBe(401);
+    expect(
+      readJson(await getSession(withSession(before), ctx)).data,
+    ).toMatchObject({ clientPrincipal: null });
+  });
+
+  it('changing the password keeps this session and signs out the others', async () => {
+    await registerAlice();
+    const laptop = sessionToken(await signIn('alice', 'original-pass'));
+    const phone = sessionToken(await signIn('alice', 'original-pass'));
+
+    const res = await changePassword(
+      withSession(laptop, {
+        currentPassword: 'original-pass',
+        newPassword: 'brand-new-pass',
+      }),
+      ctx,
+    );
+    const laptopNow = sessionToken(res);
+
+    expect((await getMe(withSession(laptopNow), ctx)).status).toBe(200);
+    expect((await getMe(withSession(phone), ctx)).status).toBe(401);
+    expect((await getMe(withSession(laptop), ctx)).status).toBe(401);
+  });
+
+  it('a revoked session cannot change the password', async () => {
+    const userId = await registerAlice();
+    const before = sessionToken(await signIn('alice', 'original-pass'));
+    await resetAs(admin, userId);
+
+    const res = await changePassword(
+      withSession(before, {
+        currentPassword: 'original-pass',
+        newPassword: 'attacker-pass',
+      }),
+      ctx,
+    );
+    expect(res.status).toBe(401);
+  });
+});

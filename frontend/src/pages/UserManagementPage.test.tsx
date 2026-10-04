@@ -12,8 +12,22 @@ const users = [
     email: 'admin@example.com',
     displayName: 'Admin',
     role: 'admin',
+    authProvider: 'aad',
   },
-  { id: 'local:abc', email: '', displayName: 'Alice', role: 'taster' },
+  {
+    id: 'local:abc',
+    email: '',
+    displayName: 'Alice',
+    role: 'taster',
+    authProvider: 'local',
+  },
+  {
+    id: 'aad-bob',
+    email: 'bob@example.com',
+    displayName: 'Bob',
+    role: 'taster',
+    authProvider: 'aad',
+  },
 ];
 
 let deletedIds: string[];
@@ -143,5 +157,114 @@ describe('UserManagementPage — roles', () => {
     );
 
     await waitFor(() => expect(body).toEqual({ role: 'admin' }));
+  });
+});
+
+describe('UserManagementPage — resetting passwords', () => {
+  it('only offers a reset for other username/password users', async () => {
+    renderWithProviders(<UserManagementPage />, { route: '/admin/users' });
+    await removeButtonFor('Alice');
+
+    expect(
+      within(await rowFor('Alice')).getByRole('button', {
+        name: 'Reset password for Alice',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(await rowFor('Bob')).queryByRole('button', { name: /reset/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(await rowFor('admin@example.com')).queryByRole('button', {
+        name: /reset/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the temporary password once after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    let resetId = '';
+    server.use(
+      http.post('/api/users/:id/reset-password', ({ params }) => {
+        resetId = decodeURIComponent(params.id as string);
+        return HttpResponse.json({
+          data: {
+            temporaryPassword: 'Abcd2345efgh',
+            expiresAt: '2026-10-05T12:00:00Z',
+          },
+        });
+      }),
+    );
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    renderWithProviders(<UserManagementPage />, { route: '/admin/users' });
+    await removeButtonFor('Alice');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password for Alice' }),
+    );
+
+    const dialog = await screen.findByRole('dialog');
+    expect(resetId).toBe('local:abc');
+    expect(within(dialog).getByTestId('temporary-password')).toHaveTextContent(
+      'Abcd2345efgh',
+    );
+    expect(dialog).toHaveTextContent(/alice/i);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalledWith('Abcd2345efgh');
+    expect(
+      within(dialog).getByRole('button', { name: 'Copied' }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('does nothing when the confirmation is cancelled', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    let called = false;
+    server.use(
+      http.post('/api/users/:id/reset-password', () => {
+        called = true;
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+    renderWithProviders(<UserManagementPage />, { route: '/admin/users' });
+    await removeButtonFor('Alice');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password for Alice' }),
+    );
+
+    expect(called).toBe(false);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows the server error when the reset fails', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    server.use(
+      http.post('/api/users/:id/reset-password', () =>
+        HttpResponse.json(
+          { message: 'No username/password account found for this user' },
+          { status: 404 },
+        ),
+      ),
+    );
+    renderWithProviders(<UserManagementPage />, { route: '/admin/users' });
+    await removeButtonFor('Alice');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password for Alice' }),
+    );
+
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith(
+        'No username/password account found for this user',
+      ),
+    );
   });
 });

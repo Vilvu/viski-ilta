@@ -93,6 +93,42 @@ describe('LoginPage — sign in', () => {
     );
   });
 
+  it('sends a user with a temporary password to change it', async () => {
+    server.use(
+      http.post('/api/auth/login', () =>
+        HttpResponse.json({ data: { ...profile, mustChangePassword: true } }),
+      ),
+    );
+    renderWithProviders(<LoginPage />, { route: '/login' });
+
+    await fillSignIn('alice', 'Temp1234abcd');
+
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith('/change-password'),
+    );
+  });
+
+  it('explains an expired temporary password', async () => {
+    server.use(
+      http.post('/api/auth/login', () =>
+        HttpResponse.json(
+          {
+            message:
+              'Temporary password has expired. Ask an admin to reset it again.',
+          },
+          { status: 401 },
+        ),
+      ),
+    );
+    renderWithProviders(<LoginPage />, { route: '/login' });
+
+    await fillSignIn('alice', 'Temp1234abcd');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /temporary password has expired/i,
+    );
+  });
+
   it('offers Microsoft sign-in', () => {
     renderWithProviders(<LoginPage />, { route: '/login' });
     expect(
