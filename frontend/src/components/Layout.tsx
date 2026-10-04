@@ -6,6 +6,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import UsernameSetupModal from './UsernameSetupModal';
 import EditDisplayNameModal from './EditDisplayNameModal';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { authApi } from '@/api/auth';
 import styles from './Layout.module.css';
 
 export default function Layout() {
@@ -41,6 +42,19 @@ export default function Layout() {
   }, [closeMenu]);
 
   const displayName = profile?.displayName ?? user?.name ?? '';
+  const isNativeAccount = user?.provider === 'local';
+
+  // Entra ID sessions are owned by SWA (/.auth/logout); native sessions are
+  // an app cookie that only the API can clear.
+  const handleNativeSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    closeMenu();
+    try {
+      await authApi.logout();
+    } finally {
+      window.location.assign('/');
+    }
+  };
 
   return (
     <div className={styles.layout}>
@@ -69,16 +83,21 @@ export default function Layout() {
                   >
                     ✏️
                   </button>
-                  <a href="/.auth/logout">{t('nav.signOut')}</a>
+                  <a
+                    href="/.auth/logout"
+                    onClick={isNativeAccount ? handleNativeSignOut : undefined}
+                  >
+                    {t('nav.signOut')}
+                  </a>
                 </div>
               ) : (
                 <>
                   {!isLoading && isAuthenticated && (
                     <span className={styles.userName}>{displayName}</span>
                   )}
-                  <a href="/.auth/login/aad" className={styles.signInBtn}>
+                  <Link to="/login" className={styles.signInBtn}>
                     {t('nav.signIn')}
-                  </a>
+                  </Link>
                 </>
               ))}
             <LanguageSwitcher />
@@ -130,19 +149,25 @@ export default function Layout() {
                     >
                       {t('nav.editName')}
                     </button>
-                    <a href="/.auth/logout" onClick={closeMenu} role="menuitem">
+                    <a
+                      href="/.auth/logout"
+                      onClick={
+                        isNativeAccount ? handleNativeSignOut : closeMenu
+                      }
+                      role="menuitem"
+                    >
                       {t('nav.signOut')}
                     </a>
                   </>
                 ) : (
-                  <a
-                    href="/.auth/login/aad"
+                  <Link
+                    to="/login"
                     className={styles.signInBtn}
                     onClick={closeMenu}
                     role="menuitem"
                   >
                     {t('nav.signIn')}
-                  </a>
+                  </Link>
                 ))}
             </div>
           </>

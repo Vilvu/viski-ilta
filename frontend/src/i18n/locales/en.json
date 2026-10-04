@@ -13,6 +13,32 @@
     "openMenu": "Open menu",
     "language": "Language"
   },
+  "auth": {
+    "signInTitle": "Sign in",
+    "registerTitle": "Create an account",
+    "signInDescription": "Sign in with your username and password.",
+    "registerDescription": "Choose a username and password. An admin grants tasting access after you sign up.",
+    "username": "Username",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "signInSubmit": "Sign in",
+    "registerSubmit": "Create account",
+    "submitting": "Please wait...",
+    "switchToRegister": "No account yet? Create one",
+    "switchToSignIn": "Already have an account? Sign in",
+    "or": "or",
+    "microsoft": "Sign in with Microsoft",
+    "errors": {
+      "usernameInvalid": "Username must be 3–32 characters: letters, numbers, \".\", \"_\" or \"-\".",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "passwordTooLong": "Password is too long.",
+      "passwordMismatch": "Passwords do not match.",
+      "invalidCredentials": "Invalid username or password.",
+      "usernameTaken": "That username is already taken.",
+      "locked": "Too many failed attempts. Try again in 15 minutes.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
   "common": {
     "loading": "Loading...",
     "cancel": "Cancel",
