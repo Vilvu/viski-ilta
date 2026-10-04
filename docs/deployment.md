@@ -8,7 +8,7 @@ Comprehensive guide for deploying and operating the WhiskyApp whisky tasting eve
 
 1. [Prerequisites](#1-prerequisites)
 2. [Azure Infrastructure Setup](#2-azure-infrastructure-setup)
-3. [Entra ID Setup](#3-entra-id-setup)
+3. [Sign-In Options](#3-sign-in-options)
 4. [Admin Role Assignment](#4-admin-role-assignment)
 5. [GitHub Actions CI/CD Setup](#5-github-actions-cicd-setup)
 6. [Local Development Setup](#6-local-development-setup)
@@ -120,7 +120,7 @@ az cosmosdb sql database create \
   --name whiskyapp
 ```
 
-#### Create the four containers
+#### Create the containers
 
 ```bash
 # Events container — partition key: /id
@@ -154,6 +154,22 @@ az cosmosdb sql container create \
   --database-name whiskyapp \
   --name ratings \
   --partition-key-path "/eventId"
+
+# Users container — partition key: /id
+az cosmosdb sql container create \
+  --account-name cosmos-whiskyapp \
+  --resource-group rg-whiskyapp \
+  --database-name whiskyapp \
+  --name users \
+  --partition-key-path "/id"
+
+# Native-account credentials — partition key: /id (= lowercased username)
+az cosmosdb sql container create \
+  --account-name cosmos-whiskyapp \
+  --resource-group rg-whiskyapp \
+  --database-name whiskyapp \
+  --name credentials \
+  --partition-key-path "/id"
 ```
 
 #### Retrieve connection credentials
@@ -231,25 +247,43 @@ az staticwebapp appsettings set \
   --setting-names \
     COSMOS_ENDPOINT=https://cosmos-whiskyapp.documents.azure.com:443/ \
     COSMOS_KEY=your-cosmos-primary-key \
-    COSMOS_DATABASE=whiskyapp
+    COSMOS_DATABASE=whiskyapp \
+    AUTH_SESSION_SECRET=$(openssl rand -base64 48)
 ```
+
+`AUTH_SESSION_SECRET` signs native username/password session cookies. Use a long random value. Without it,
+native sign-in is disabled (fails closed), and rotating it signs out every native user. The `infra-deploy`
+workflow sets it from the `AUTH_SESSION_SECRET` GitHub secret (Bicep `authSessionSecret` parameter). The SWA
+app-settings resource replaces all settings, so keep that secret populated whenever the infra workflow runs.
 
 > **Security Note**: Application settings are encrypted at rest and injected as environment variables into the Azure Functions runtime. They are not exposed to the frontend.
 
 ---
 
-## 3. Entra ID Setup
+## 3. Sign-In Options
+
+Users sign in from the `/login` page with either:
+
+- a **native account**: open sign-up with a username (3–32 chars, `A-Z a-z 0-9 . _ -`, case-insensitive)
+  and password (8–72 bytes). This is app-managed by `api/src/functions/auth.ts` and needs
+  `AUTH_SESSION_SECRET` (§2.4). Accounts lock for 15 minutes after 5 failed sign-ins.
+- **Microsoft Entra ID**: SWA built-in auth, set up below.
+
+Both kinds of user start with the `anonymous` role and are promoted the same way (§4). See
+`docs/adr/0002-native-auth.md` for the design.
+
+### 3.1 Entra ID Setup
 
 Entra ID (formerly Azure Active Directory) is a **pre-configured identity provider** on Azure Static Web Apps Free SKU. No separate app registration or client credentials are required for the default multitenant setup.
 
-### 3.1 How It Works
+#### How It Works
 
 - **Login URL**: `/.auth/login/aad`
 - **Supported accounts**: Any Microsoft account (personal or work/school)
 - **No client ID/secret required** for the pre-configured provider
 - **Admin role management**: Built-in SWA invitation system via Azure Portal
 
-### 3.2 Optional: Single Tenant Restriction
+#### Optional: Single Tenant Restriction
 
 The pre-configured provider allows any Microsoft account to sign in. To restrict authentication to a specific Azure AD tenant:
 
@@ -260,7 +294,7 @@ The pre-configured provider allows any Microsoft account to sign in. To restrict
 
 > **Note**: Single-tenant configuration via `staticwebapp.config.json` is a **Standard SKU feature**. On the Free SKU, the pre-configured multitenant provider is used as-is.
 
-### 3.3 Auth Flow Summary
+#### Auth Flow Summary
 
 ```mermaid
 sequenceDiagram
@@ -378,6 +412,7 @@ Add the following secrets:
 | `COSMOS_DB_ENDPOINT` | `https://cosmos-whiskyapp.documents.azure.com:443/` | Cosmos DB endpoint |
 | `COSMOS_DB_KEY` | Your Cosmos DB primary key | Cosmos DB authentication |
 | `COSMOS_DB_DATABASE` | `whiskyapp` | Database name |
+| `AUTH_SESSION_SECRET` | Long random string | Native sign-in session signing key (used by `infra-deploy`) |
 
 > **Note**: The workflow file references these secrets with the `COSMOS_DB_` prefix. The Azure Functions runtime receives them as environment variables. The API code reads `COSMOS_ENDPOINT`, `COSMOS_KEY`, and `COSMOS_DATABASE` — ensure the SWA application settings (Section 2.4) use the correct names that match the code.
 
@@ -464,7 +499,8 @@ Edit `api/local.settings.json` with your Cosmos DB credentials:
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "COSMOS_ENDPOINT": "https://your-account.documents.azure.com:443/",
     "COSMOS_KEY": "your-cosmos-primary-key",
-    "COSMOS_DATABASE": "whiskyapp"
+    "COSMOS_DATABASE": "whiskyapp",
+    "AUTH_SESSION_SECRET": "replace-with-a-long-random-string"
   }
 }
 ```
