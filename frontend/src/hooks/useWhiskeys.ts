@@ -5,6 +5,7 @@ import {
   type CreateCatalogWhiskeyInput,
   type UpdateCatalogWhiskeyInput,
   type AddWhiskeyToEventInput,
+  type RecognitionLanguage,
 } from '@/api/whiskeys';
 
 // Event-linked whiskeys queries
@@ -164,6 +165,52 @@ export function useDeleteCatalogWhiskey() {
         queryKey: ['whiskeys'],
       });
     },
+  });
+}
+
+// Bottle photo mutations
+
+/**
+ * Upload or replace a whiskey's bottle photo.
+ */
+export function useUploadWhiskeyImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ whiskeyId, image }: { whiskeyId: string; image: Blob }) =>
+      catalogWhiskeysApi.uploadImage(whiskeyId, image),
+    onSuccess: () => {
+      // The photo shows in event lists, detail pages and the ranking.
+      queryClient.invalidateQueries({ queryKey: ['whiskeys'] });
+    },
+  });
+}
+
+/**
+ * Remove a whiskey's bottle photo.
+ */
+export function useDeleteWhiskeyImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (whiskeyId: string) =>
+      catalogWhiskeysApi.deleteImage(whiskeyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whiskeys'] });
+    },
+  });
+}
+
+/**
+ * Recognize a bottle from a photo with AI. Returns suggested field values.
+ */
+export function useRecognizeWhiskey() {
+  return useMutation({
+    mutationFn: ({
+      image,
+      language,
+    }: {
+      image: Blob;
+      language: RecognitionLanguage;
+    }) => catalogWhiskeysApi.recognize(image, language),
   });
 }
 

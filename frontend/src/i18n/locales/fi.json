@@ -184,5 +184,29 @@
       "taster": "Maistelija",
       "admin": "Ylläpitäjä"
     }
+  },
+  "whiskeyForm": {
+    "photo": "Pullon kuva",
+    "noPhoto": "Ei kuvaa",
+    "choosePhoto": "Lisää kuva",
+    "changePhoto": "Vaihda kuva",
+    "clearPhoto": "Hylkää uusi kuva",
+    "removePhoto": "Poista kuva",
+    "removingPhoto": "Poistetaan...",
+    "confirmRemovePhoto": "Poistetaanko pullon kuva?",
+    "photoAlt": "Pullo: {{name}}",
+    "pendingPhotoAlt": "Valittu pullon kuva",
+    "recognize": "Tunnista tekoälyllä",
+    "recognizing": "Tunnistetaan...",
+    "recognizeHint": "Tekoäly lukee etiketin ja hakee puuttuvat tiedot. Vain tyhjät kentät täytetään.",
+    "recognizedFilled_one": "Täytettiin {{count}} kenttä. Tarkista tiedot ennen tallennusta.",
+    "recognizedFilled_other": "Täytettiin {{count}} kenttää. Tarkista tiedot ennen tallennusta.",
+    "recognizedNothing": "Tyhjiin kenttiin ei löytynyt uutta tietoa.",
+    "aiUnavailable": "Tekoälytunnistusta ei ole otettu käyttöön tällä palvelimella.",
+    "aiBusy": "Tekoälytunnistus on ruuhkautunut. Yritä hetken päästä uudelleen.",
+    "aiFailed": "Tekoälytunnistus epäonnistui. Yritä uudelleen tai täytä kentät itse.",
+    "invalidImage": "Tiedosto ei ole tuettu kuva.",
+    "uploadFailed": "Viski tallennettiin, mutta kuvan lataus epäonnistui.",
+    "removeFailed": "Kuvan poisto epäonnistui."
   }
 }

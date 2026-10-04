@@ -1,4 +1,4 @@
-# ADR 0002: Native Username/Password Sign-In
+# ADR 0003: Native Username/Password Sign-In
 
 ## Status
 

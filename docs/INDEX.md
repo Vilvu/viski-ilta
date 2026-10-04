@@ -9,7 +9,8 @@ Navigation hub for the WhiskyApp project documentation and planning artifacts.
 | [architecture.md](architecture.md) | System Architecture — tech stack, component design, Azure resources |
 | [deployment.md](deployment.md) | Deployment Guide — Azure setup, CI/CD, local dev, troubleshooting |
 | [adr/0001-unit-test-coverage.md](adr/0001-unit-test-coverage.md) | ADR — Unit test coverage strategy (Vitest, Cosmos test fake, MSW, thresholds) |
-| [adr/0002-native-auth.md](adr/0002-native-auth.md) | ADR — Native username/password sign-in (session cookie, credentials container, lockout) |
+| [adr/0002-bottle-photos-and-ai-recognition.md](adr/0002-bottle-photos-and-ai-recognition.md) | ADR — Bottle photos in Blob Storage and AI bottle recognition with Claude |
+| [adr/0003-native-auth.md](adr/0003-native-auth.md) | ADR — Native username/password sign-in (session cookie, credentials container, lockout) |
 
 ## Project Summary
 

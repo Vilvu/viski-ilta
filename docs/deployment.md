@@ -248,8 +248,15 @@ az staticwebapp appsettings set \
     COSMOS_ENDPOINT=https://cosmos-whiskyapp.documents.azure.com:443/ \
     COSMOS_KEY=your-cosmos-primary-key \
     COSMOS_DATABASE=whiskyapp \
+    BLOB_STORAGE_CONNECTION_STRING="<storage account connection string>" \
+    ANTHROPIC_API_KEY=your-anthropic-api-key \
     AUTH_SESSION_SECRET=$(openssl rand -base64 48)
 ```
+
+`BLOB_STORAGE_CONNECTION_STRING` points at the storage account that holds bottle photos (container
+`whiskey-images`, created automatically). The Bicep deployment in `infra/` creates the account and sets this
+value for you. `ANTHROPIC_API_KEY` is optional: without it the app works normally and the "Recognize with AI"
+button reports that recognition is not configured.
 
 `AUTH_SESSION_SECRET` signs native username/password session cookies. Use a long random value. Without it,
 native sign-in is disabled (fails closed), and rotating it signs out every native user. The `infra-deploy`
@@ -270,7 +277,7 @@ Users sign in from the `/login` page with either:
 - **Microsoft Entra ID**: SWA built-in auth, set up below.
 
 Both kinds of user start with the `anonymous` role and are promoted the same way (§4). See
-`docs/adr/0002-native-auth.md` for the design.
+`docs/adr/0003-native-auth.md` for the design.
 
 ### 3.1 Entra ID Setup
 
@@ -500,10 +507,18 @@ Edit `api/local.settings.json` with your Cosmos DB credentials:
     "COSMOS_ENDPOINT": "https://your-account.documents.azure.com:443/",
     "COSMOS_KEY": "your-cosmos-primary-key",
     "COSMOS_DATABASE": "whiskyapp",
+    "USE_COSMOS_MOCK": "true",
+    "BLOB_STORAGE_CONNECTION_STRING": "",
+    "USE_BLOB_MOCK": "true",
+    "ANTHROPIC_API_KEY": "",
     "AUTH_SESSION_SECRET": "replace-with-a-long-random-string"
   }
 }
 ```
+
+`USE_BLOB_MOCK=true` keeps bottle photos in memory, so no storage account is needed locally. Set it to `"false"`
+and provide `BLOB_STORAGE_CONNECTION_STRING` to use a real account (or Azurite with
+`UseDevelopmentStorage=true`). Set `ANTHROPIC_API_KEY` to try AI bottle recognition locally.
 
 #### Frontend Configuration
 
@@ -611,6 +626,9 @@ cd ../api && npm run build     # Output: api/dist/
 | `COSMOS_ENDPOINT` | Yes | — | Azure Cosmos DB account endpoint URL | `https://cosmos-whiskyapp.documents.azure.com:443/` |
 | `COSMOS_KEY` | Yes | — | Azure Cosmos DB primary or secondary key | `abc123...` |
 | `COSMOS_DATABASE` | No | `whiskyapp` | Cosmos DB database name | `whiskyapp` |
+| `BLOB_STORAGE_CONNECTION_STRING` | Yes (unless `USE_BLOB_MOCK=true`) | — | Storage account for bottle photos | `DefaultEndpointsProtocol=https;AccountName=...` |
+| `USE_BLOB_MOCK` | Local only | — | Keep bottle photos in memory instead of Blob Storage | `true` |
+| `ANTHROPIC_API_KEY` | No | — | Enables AI bottle recognition; without it the endpoint returns 503 | `sk-ant-...` |
 | `FUNCTIONS_WORKER_RUNTIME` | Yes | — | Azure Functions runtime (set automatically) | `node` |
 | `AzureWebJobsStorage` | Local only | — | Storage connection for local dev | `UseDevelopmentStorage=true` |
 
@@ -630,6 +648,7 @@ cd ../api && npm run build     # Output: api/dist/
 | `COSMOS_DB_ENDPOINT` | Yes | Cosmos DB endpoint — passed to deployment |
 | `COSMOS_DB_KEY` | Yes | Cosmos DB key — passed to deployment |
 | `COSMOS_DB_DATABASE` | No | Database name — defaults to `whiskyapp` |
+| `ANTHROPIC_API_KEY` | No | Passed by the Infra Deploy workflow into the SWA app settings to enable AI bottle recognition |
 | `GITHUB_TOKEN` | Auto | Automatically provided by GitHub Actions |
 
 ### 7.4 Azure Static Web Apps Application Settings
@@ -641,6 +660,8 @@ These are configured via Azure Portal or CLI (Section 2.4) and are injected into
 | `COSMOS_ENDPOINT` | Your Cosmos DB endpoint URL |
 | `COSMOS_KEY` | Your Cosmos DB primary key |
 | `COSMOS_DATABASE` | `whiskyapp` |
+| `BLOB_STORAGE_CONNECTION_STRING` | Storage account connection string (set by Bicep) |
+| `ANTHROPIC_API_KEY` | Optional — Anthropic API key for AI bottle recognition |
 
 ### 7.5 Where Each Variable Is Set
 

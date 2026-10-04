@@ -1,0 +1,40 @@
+.photo {
+  flex-shrink: 0;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  object-fit: contain;
+}
+
+.thumb {
+  width: 48px;
+  height: 64px;
+}
+
+.large {
+  width: 150px;
+  height: 200px;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.thumb.placeholder {
+  font-size: 1.5rem;
+}
+
+.large.placeholder {
+  font-size: 3rem;
+}
+
+@media (max-width: 600px) {
+  .large {
+    width: 120px;
+    height: 160px;
+  }
+}

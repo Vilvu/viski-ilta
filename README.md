@@ -7,6 +7,8 @@ A web application for recording and tracking user whisky ratings from whisky tas
 - **Frontend**: React + TypeScript + Vite
 - **Backend**: Azure Functions v4 (Node.js/TypeScript)
 - **Database**: Azure Cosmos DB (serverless)
+- **Photos**: Azure Blob Storage (bottle photos, private container served through the API)
+- **AI**: Anthropic Claude API (optional bottle recognition)
 - **Auth**: Azure Static Web Apps built-in auth (Microsoft Entra ID) for sign-in only; authorization roles (`anonymous`/`taster`/`admin`) are app-managed in Cosmos DB — see [Deployment Guide § 4](docs/deployment.md#4-admin-role-assignment) for first-admin bootstrap
 - **Hosting**: Azure Static Web Apps
 
@@ -40,6 +42,9 @@ whisky-app/
 5. Start the API: `cd api && npm run dev`
 6. Start the frontend: `cd frontend && npm run dev`
 
+
+Bottle photos are kept in memory locally (`USE_BLOB_MOCK=true`). AI bottle recognition is optional: set
+`ANTHROPIC_API_KEY` in `api/local.settings.json` to enable the "Recognize with AI" button.
 
 To use a real Cosmos DB instance instead, set `USE_COSMOS_MOCK` to `"false"` in `api/local.settings.json` and provide valid `COSMOS_ENDPOINT` and `COSMOS_KEY` values.
 
