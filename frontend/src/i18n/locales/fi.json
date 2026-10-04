@@ -13,6 +13,32 @@
     "openMenu": "Avaa valikko",
     "language": "Kieli"
   },
+  "auth": {
+    "signInTitle": "Kirjaudu sisään",
+    "registerTitle": "Luo tili",
+    "signInDescription": "Kirjaudu käyttäjätunnuksella ja salasanalla.",
+    "registerDescription": "Valitse käyttäjätunnus ja salasana. Ylläpitäjä myöntää maisteluoikeudet rekisteröitymisen jälkeen.",
+    "username": "Käyttäjätunnus",
+    "password": "Salasana",
+    "confirmPassword": "Vahvista salasana",
+    "signInSubmit": "Kirjaudu sisään",
+    "registerSubmit": "Luo tili",
+    "submitting": "Odota hetki...",
+    "switchToRegister": "Ei vielä tiliä? Luo tili",
+    "switchToSignIn": "Onko sinulla jo tili? Kirjaudu sisään",
+    "or": "tai",
+    "microsoft": "Kirjaudu Microsoft-tilillä",
+    "errors": {
+      "usernameInvalid": "Käyttäjätunnuksen pituus 3–32 merkkiä: kirjaimet, numerot, \".\", \"_\" tai \"-\".",
+      "passwordTooShort": "Salasanan on oltava vähintään 8 merkkiä.",
+      "passwordTooLong": "Salasana on liian pitkä.",
+      "passwordMismatch": "Salasanat eivät täsmää.",
+      "invalidCredentials": "Virheellinen käyttäjätunnus tai salasana.",
+      "usernameTaken": "Käyttäjätunnus on jo käytössä.",
+      "locked": "Liian monta epäonnistunutta yritystä. Yritä uudelleen 15 minuutin kuluttua.",
+      "generic": "Jotain meni pieleen. Yritä uudelleen."
+    }
+  },
   "common": {
     "loading": "Ladataan...",
     "cancel": "Peruuta",

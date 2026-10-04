@@ -426,9 +426,9 @@ export default function WhiskeyDetailPage() {
 
       {!isAuthenticated && (
         <div className={styles.signInPrompt}>
-          <a href="/.auth/login/aad" className={styles.signInBtn}>
+          <Link to="/login" className={styles.signInBtn}>
             {t('whiskeyDetail.signInPrompt')}
-          </a>
+          </Link>
         </div>
       )}
 

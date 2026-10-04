@@ -36,7 +36,7 @@ export async function getMe(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAuth(req);
+    const principal = await requireAuth(req);
     const profile = await ensureUser(principal);
 
     return ok({
@@ -56,7 +56,7 @@ export async function updateMe(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const principal = requireAuth(req);
+    const principal = await requireAuth(req);
     const body = (await req.json()) as Record<string, unknown>;
 
     if (!body.displayName || typeof body.displayName !== 'string') {

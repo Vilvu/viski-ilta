@@ -1,5 +1,6 @@
 import { HttpRequest } from '@azure/functions';
 import { getContainer } from './cosmos';
+import { getSessionPrincipal, LOCAL_PROVIDER } from './session';
 
 export interface ClientPrincipal {
   userId: string;
@@ -25,8 +26,21 @@ export function getClientPrincipal(
   }
 }
 
-export function requireAuth(request: HttpRequest): ClientPrincipal {
-  const principal = getClientPrincipal(request);
+/**
+ * Resolves the caller's identity from either source: SWA's
+ * x-ms-client-principal header (Entra ID) or, when that is absent, the
+ * app-managed session cookie of a native username/password account.
+ */
+export async function resolvePrincipal(
+  request: HttpRequest,
+): Promise<ClientPrincipal | null> {
+  return getClientPrincipal(request) ?? (await getSessionPrincipal(request));
+}
+
+export async function requireAuth(
+  request: HttpRequest,
+): Promise<ClientPrincipal> {
+  const principal = await resolvePrincipal(request);
   if (!principal) {
     throw { statusCode: 401, message: 'Authentication required' };
   }
@@ -68,6 +82,8 @@ export interface UserProfile {
   // whereas defaulting to `true` would permanently silence the prompt for
   // users auto-provisioned during the window before this field existed.
   usernameConfirmed: boolean;
+  // 'local' for native username/password accounts; absent on Entra ID docs.
+  authProvider?: 'aad' | 'local';
   createdAt: string;
   updatedAt: string;
 }
@@ -123,7 +139,10 @@ export async function ensureUser(
       }
     }
 
-    const needsEmailBackfill = !resource.email;
+    // Native accounts have no email (stored as ''), so never backfill them —
+    // otherwise every request would rewrite the doc with the username.
+    const needsEmailBackfill =
+      !resource.email && principal.identityProvider !== LOCAL_PROVIDER;
     const needsRoleBackfill = !resource.role;
     // Legacy docs predate this field entirely (undefined). Backfill to
     // `false` rather than `true`: docs auto-provisioned during the window
@@ -193,7 +212,7 @@ export async function getUserRole(
 export async function requireAdmin(
   request: HttpRequest,
 ): Promise<{ principal: ClientPrincipal; profile: UserProfile }> {
-  const principal = requireAuth(request);
+  const principal = await requireAuth(request);
   const profile = await ensureUser(principal);
   if (profile.role !== 'admin') {
     throw { statusCode: 403, message: 'Admin role required' };
@@ -204,7 +223,7 @@ export async function requireAdmin(
 export async function requireTaster(
   request: HttpRequest,
 ): Promise<{ principal: ClientPrincipal; profile: UserProfile }> {
-  const principal = requireAuth(request);
+  const principal = await requireAuth(request);
   const profile = await ensureUser(principal);
   if (profile.role !== 'taster' && profile.role !== 'admin') {
     throw { statusCode: 403, message: 'Taster role required' };

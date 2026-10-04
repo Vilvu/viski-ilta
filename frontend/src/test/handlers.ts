@@ -8,6 +8,7 @@ import { http, HttpResponse } from 'msw';
  */
 export const handlers = [
   http.get('/.auth/me', () => HttpResponse.json({ clientPrincipal: null })),
+  http.get('/api/auth/me', () => HttpResponse.json({ clientPrincipal: null })),
 
   http.get('/api/users/me', () =>
     HttpResponse.json({

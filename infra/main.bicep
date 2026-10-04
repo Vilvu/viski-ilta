@@ -13,6 +13,8 @@ param repositoryBranch string
 @secure()
 param cosmosKey string = ''
 @secure()
+param authSessionSecret string = ''
+@secure()
 param anthropicApiKey string = ''  // optional; enables AI bottle recognition
 param environment string
 
@@ -63,6 +65,7 @@ module staticWebAppModule './modules/staticwebapp.bicep' = {
     cosmosDatabase: 'whiskyapp'
     storageAccountName: storageModule.outputs.storageAccountName
     anthropicApiKey: anthropicApiKey
+    authSessionSecret: authSessionSecret
   }
   dependsOn: [
     rg

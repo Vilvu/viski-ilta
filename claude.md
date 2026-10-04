@@ -49,7 +49,7 @@ WhiskyApp is a web application for recording and tracking user whisky ratings fr
 - **Frontend**: React 18 + TypeScript + Vite → Azure Static Web Apps
 - **Backend**: Azure Functions v4 (Node.js 20) via SWA managed functions
 - **Database**: Azure Cosmos DB (NoSQL, serverless)
-- **Auth**: Azure Static Web Apps built-in auth (Microsoft Entra ID) for sign-in; app-managed roles (`anonymous`/`taster`/`admin`) stored in Cosmos DB
+- **Auth**: Azure Static Web Apps built-in auth (Microsoft Entra ID) or native username/password accounts (app-managed session cookie) for sign-in; app-managed roles (`anonymous`/`taster`/`admin`) stored in Cosmos DB
 
 ### Project Structure
 ```
@@ -64,8 +64,8 @@ whisky-app/
 │   │   └── App.tsx    # Routes
 ├── api/               # Azure Functions
 │   ├── src/
-│   │   ├── functions/ # events.ts, ratings.ts, users.ts, whiskeys.ts, health.ts
-│   │   └── lib/       # cosmos.ts, cosmos.mock.ts, auth.ts, response.ts, aggregates.ts, blob.ts, ai.ts
+│   │   ├── functions/ # auth.ts, events.ts, ratings.ts, users.ts, whiskeys.ts, health.ts
+│   │   └── lib/       # cosmos.ts, cosmos.mock.ts, auth.ts, session.ts, response.ts, aggregates.ts, blob.ts, ai.ts
 ├── docs/              # Architecture & deployment docs
 └── staticwebapp.config.json
 ```
@@ -77,6 +77,7 @@ whisky-app/
 - `eventWhiskeys` (pk: `/eventId`) — Links whiskey to event with event-scoped aggregates
 - `ratings` (pk: `/eventId`) — User ratings per event/whiskey
 - `users` — App-managed user profiles with roles
+- `credentials` (pk: `/id` = lowercased username) — Native account password hashes and lockout state
 
 ### API Routes
 - `GET/POST /api/events` — List/create events (admin only for POST)
@@ -86,10 +87,14 @@ whisky-app/
 - `GET/POST /api/events/:eventId/whiskeys` — Event whiskey links
 - `PUT/DELETE /api/events/:eventId/whiskeys/:whiskeyId/ratings/me` — User ratings
 - `GET/PUT /api/users/me` — User profile
+- `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` — Native accounts
 
 ### Auth & Roles
-- Sign-in via `/.auth/login/aad` (Microsoft Entra ID)
-- Auth context passed via `x-ms-client-principal` header
+- Sign-in page at `/login`: native username/password (open sign-up) or `/.auth/login/aad` (Microsoft Entra ID)
+- Auth context passed via `x-ms-client-principal` header (Entra ID) or the `whisky_session` cookie (native; HS256 JWT
+  signed with `AUTH_SESSION_SECRET`). `resolvePrincipal()` in `api/src/lib/auth.ts` turns either into the same
+  `ClientPrincipal` (`identityProvider: 'local'` for native), so `requireAuth`/`requireTaster`/`requireAdmin` are
+  provider-agnostic. See `docs/adr/0003-native-auth.md`
 - Roles are app-managed in Cosmos DB `users` container, not SWA roles
 - First admin must be bootstrapped manually in Cosmos DB (see docs/deployment.md §4.2)
 
@@ -98,16 +103,19 @@ whisky-app/
 - Set `USE_COSMOS_MOCK=true` in `api/local.settings.json` for mock DB (seeds admin user `id: 'admin'`)
 - Set `USE_BLOB_MOCK=true` for in-memory photo storage; otherwise `BLOB_STORAGE_CONNECTION_STRING` is required
 - `ANTHROPIC_API_KEY` is optional; without it AI recognition returns 503 and the UI says it is not configured
-- SWA auth doesn't work locally; use SWA CLI or mock `x-ms-client-principal` header
+- SWA auth doesn't work locally; use SWA CLI or mock `x-ms-client-principal` header. Native sign-in works locally
+  once `AUTH_SESSION_SECRET` is set in `api/local.settings.json`
 
 ### Key Files
 - `api/src/lib/cosmos.ts` — Cosmos DB connection (switches to mock via env var)
 - `api/src/lib/cosmos.mock.ts` — In-memory mock with seeded data
-- `api/src/lib/auth.ts` — Client principal parsing, role checking
 - `api/src/lib/blob.ts` — Bottle photo storage seam (Azure Blob Storage, or in-memory via `USE_BLOB_MOCK`)
 - `api/src/lib/ai.ts` — AI bottle recognition (Claude vision, web search limited to whisky reference sites)
 - `frontend/src/components/WhiskeyImageField.tsx` — Photo picker + "Recognize with AI" used by add/edit forms;
   `frontend/src/lib/image.ts` downscales photos client-side, `frontend/src/lib/recognize.ts` fills only empty fields
+- `api/src/lib/auth.ts` — Client principal parsing (SWA header or native session), role checking
+- `api/src/lib/session.ts` — Native session JWT + cookie helpers
+- `api/src/functions/auth.ts` — Native register/login/logout/session endpoints
 - `staticwebapp.config.json` — SWA routing, navigation fallback, security headers
 - `frontend/src/App.tsx` — Application routes with ProtectedRoute/AdminRoute guards
 

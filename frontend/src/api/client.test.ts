@@ -64,14 +64,29 @@ describe('apiClient 401 interceptor', () => {
     vi.resetModules();
   });
 
-  it('redirects to /.auth/login/aad on a 401 response', async () => {
+  it('redirects to /login on a 401 response', async () => {
     server.use(
       http.get('/api/protected', () => new HttpResponse(null, { status: 401 })),
     );
     const { apiClient } = await import('./client');
 
     await expect(apiClient.get('/protected')).rejects.toBeTruthy();
-    expect(window.location.href).toBe('/.auth/login/aad');
+    expect(window.location.href).toBe('/login');
+  });
+
+  it('does not redirect on a 401 from the native sign-in endpoints', async () => {
+    server.use(
+      http.post(
+        '/api/auth/login',
+        () => new HttpResponse(null, { status: 401 }),
+      ),
+    );
+    const { apiClient } = await import('./client');
+
+    await expect(apiClient.post('/auth/login', {})).rejects.toMatchObject({
+      response: { status: 401 },
+    });
+    expect(window.location.href).toBe('http://localhost:3000/');
   });
 
   it('propagates non-401 errors unchanged without redirecting', async () => {

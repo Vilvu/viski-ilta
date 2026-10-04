@@ -34,6 +34,8 @@ export interface MakeRequestOptions {
   principal?: ClientPrincipal | null;
   /** Raw headers, merged with the principal header if both are given. */
   headers?: Record<string, string>;
+  /** Request cookies, serialized into a `Cookie` header. */
+  cookies?: Record<string, string>;
 }
 
 /** Minimal HttpRequest stub covering exactly what the handlers read. */
@@ -46,6 +48,14 @@ export function makeRequest(options: MakeRequestOptions = {}): HttpRequest {
   );
   if (options.principal) {
     headerMap.set('x-ms-client-principal', principalHeader(options.principal));
+  }
+  if (options.cookies) {
+    headerMap.set(
+      'cookie',
+      Object.entries(options.cookies)
+        .map(([name, value]) => `${name}=${value}`)
+        .join('; '),
+    );
   }
   const queryMap = new Map<string, string>(Object.entries(options.query ?? {}));
 

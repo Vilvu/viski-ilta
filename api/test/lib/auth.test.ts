@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fakeCosmos } from '../helpers/mockCosmos';
 import {
   makeRequest,
@@ -19,7 +19,9 @@ import {
   requireTaster,
   requireAdmin,
   isAdmin,
+  resolvePrincipal,
 } from '../../src/lib/auth';
+import { createSessionToken, SESSION_COOKIE } from '../../src/lib/session';
 
 beforeEach(() => {
   fakeCosmos.reset();
@@ -54,21 +56,60 @@ describe('getClientPrincipal', () => {
 });
 
 describe('requireAuth', () => {
-  it('throws a 401-shaped error when unauthenticated', () => {
+  it('throws a 401-shaped error when unauthenticated', async () => {
     const req = makeRequest();
-    expect(() => requireAuth(req)).toThrow();
-    try {
-      requireAuth(req);
-      expect.unreachable();
-    } catch (error) {
-      expect(error).toMatchObject({ statusCode: 401 });
-    }
+    await expect(requireAuth(req)).rejects.toMatchObject({ statusCode: 401 });
   });
 
-  it('returns the principal when authenticated', () => {
+  it('returns the principal when authenticated', async () => {
     const principal = makePrincipal();
     const req = makeRequest({ principal });
-    expect(requireAuth(req)).toEqual(principal);
+    await expect(requireAuth(req)).resolves.toEqual(principal);
+  });
+});
+
+describe('resolvePrincipal (native session fallback)', () => {
+  beforeEach(() => {
+    vi.stubEnv('AUTH_SESSION_SECRET', 'test-secret-value');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('resolves a local principal from the session cookie when no header is present', async () => {
+    const token = await createSessionToken({
+      userId: 'local:abc',
+      username: 'Alice',
+    });
+    const req = makeRequest({ cookies: { [SESSION_COOKIE]: token } });
+
+    const principal = await resolvePrincipal(req);
+    expect(principal).toMatchObject({
+      userId: 'local:abc',
+      userDetails: 'Alice',
+      identityProvider: 'local',
+    });
+    await expect(requireAuth(req)).resolves.toMatchObject({
+      userId: 'local:abc',
+    });
+  });
+
+  it('prefers the SWA header over the session cookie', async () => {
+    const token = await createSessionToken({
+      userId: 'local:abc',
+      username: 'Alice',
+    });
+    const principal = makePrincipal({ userId: 'aad-user' });
+    const req = makeRequest({
+      principal,
+      cookies: { [SESSION_COOKIE]: token },
+    });
+    await expect(resolvePrincipal(req)).resolves.toEqual(principal);
+  });
+
+  it('returns null for an invalid session cookie', async () => {
+    const req = makeRequest({ cookies: { [SESSION_COOKIE]: 'garbage' } });
+    await expect(resolvePrincipal(req)).resolves.toBeNull();
   });
 });
 
@@ -117,6 +158,35 @@ describe('getUserEmail priority', () => {
 });
 
 describe('ensureUser', () => {
+  it('does not backfill the empty email of a native (local) account', async () => {
+    const doc = {
+      id: 'local:abc',
+      displayName: 'Alice',
+      email: '',
+      role: 'anonymous',
+      usernameConfirmed: true,
+      authProvider: 'local',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    fakeCosmos.seed('users', [doc]);
+    const replaceSpy = vi.spyOn(
+      fakeCosmos.getContainer('users').item('local:abc', 'local:abc'),
+      'replace',
+    );
+
+    const profile = await ensureUser(
+      makePrincipal({
+        userId: 'local:abc',
+        identityProvider: 'local',
+        userDetails: 'Alice',
+      }),
+    );
+
+    expect(profile.email).toBe('');
+    expect(replaceSpy).not.toHaveBeenCalled();
+  });
+
   it('creates a doc with role anonymous and usernameConfirmed false on first sign-in', async () => {
     const principal = makePrincipal({ userId: 'new-user' });
     const profile = await ensureUser(principal);

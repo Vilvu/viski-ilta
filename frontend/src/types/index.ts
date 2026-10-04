@@ -3,6 +3,8 @@ export interface User {
   email: string;
   name: string;
   role: 'admin' | 'taster' | 'user' | 'anonymous';
+  // Identity provider: 'aad' (SWA / Entra ID) or 'local' (native account).
+  provider?: string;
 }
 
 export interface Event {
