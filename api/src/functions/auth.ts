@@ -113,6 +113,49 @@ async function readBody(
   }
 }
 
+function isLocked(credentials: Credentials, now: Date): boolean {
+  return !!credentials.lockedUntil && new Date(credentials.lockedUntil) > now;
+}
+
+function isTempPasswordExpired(credentials: Credentials, now: Date): boolean {
+  return (
+    credentials.mustChangePassword === true &&
+    (!credentials.tempPasswordExpiresAt ||
+      new Date(credentials.tempPasswordExpiresAt) <= now)
+  );
+}
+
+/**
+ * Records a failed password check (sign-in or change-password share one
+ * counter). Returns true if this attempt locked the account.
+ */
+async function recordFailedAttempt(
+  credentials: Credentials,
+  now: Date,
+): Promise<boolean> {
+  const failedAttempts = (credentials.failedAttempts ?? 0) + 1;
+  const locked = failedAttempts >= MAX_FAILED_ATTEMPTS;
+  await getContainer('credentials')
+    .item(credentials.id, credentials.id)
+    .patch([
+      // Reset the counter when locking so the next window starts fresh.
+      {
+        op: 'set',
+        path: '/failedAttempts',
+        value: locked ? 0 : failedAttempts,
+      },
+      {
+        op: 'set',
+        path: '/lockedUntil',
+        value: locked
+          ? new Date(now.getTime() + LOCKOUT_MINUTES * 60_000).toISOString()
+          : null,
+      },
+      { op: 'set', path: '/updatedAt', value: now.toISOString() },
+    ]);
+  return locked;
+}
+
 // POST /api/auth/register
 export async function register(
   req: HttpRequest,
@@ -211,38 +254,17 @@ export async function login(
     }
 
     const now = new Date();
-    if (credentials.lockedUntil && new Date(credentials.lockedUntil) > now) {
+    if (isLocked(credentials, now)) {
       return tooManyAttempts();
     }
 
     const valid = await bcrypt.compare(password, credentials.passwordHash);
     if (!valid) {
-      const failedAttempts = (credentials.failedAttempts ?? 0) + 1;
-      const locked = failedAttempts >= MAX_FAILED_ATTEMPTS;
-      await container.item(id, id).patch([
-        // Reset the counter when locking so the next window starts fresh.
-        {
-          op: 'set',
-          path: '/failedAttempts',
-          value: locked ? 0 : failedAttempts,
-        },
-        {
-          op: 'set',
-          path: '/lockedUntil',
-          value: locked
-            ? new Date(now.getTime() + LOCKOUT_MINUTES * 60_000).toISOString()
-            : null,
-        },
-        { op: 'set', path: '/updatedAt', value: now.toISOString() },
-      ]);
+      const locked = await recordFailedAttempt(credentials, now);
       return locked ? tooManyAttempts() : unauthorized(INVALID_CREDENTIALS);
     }
 
-    if (
-      credentials.mustChangePassword &&
-      (!credentials.tempPasswordExpiresAt ||
-        new Date(credentials.tempPasswordExpiresAt) <= now)
-    ) {
+    if (isTempPasswordExpired(credentials, now)) {
       return unauthorized(TEMP_PASSWORD_EXPIRED);
     }
 
@@ -365,8 +387,23 @@ export async function changePassword(
       return { ...unauthorized(), cookies: [clearedSessionCookie()] };
     }
 
+    // Same protections as sign-in: a session cookie must not allow unlimited
+    // guesses at the current password, or use of an expired temporary one.
+    const now = new Date();
+    if (isLocked(credentials, now)) {
+      return tooManyAttempts();
+    }
     if (!(await bcrypt.compare(currentPassword, credentials.passwordHash))) {
-      return badRequest('Current password is incorrect');
+      const locked = await recordFailedAttempt(credentials, now);
+      return locked
+        ? tooManyAttempts()
+        : badRequest('Current password is incorrect');
+    }
+    if (isTempPasswordExpired(credentials, now)) {
+      return {
+        ...unauthorized(TEMP_PASSWORD_EXPIRED),
+        cookies: [clearedSessionCookie()],
+      };
     }
 
     const sessionVersion = (credentials.sessionVersion ?? 0) + 1;
@@ -382,7 +419,7 @@ export async function changePassword(
       { op: 'set', path: '/lockedUntil', value: null },
       // Signs out every other session (e.g. other devices).
       { op: 'set', path: '/sessionVersion', value: sessionVersion },
-      { op: 'set', path: '/updatedAt', value: new Date().toISOString() },
+      { op: 'set', path: '/updatedAt', value: now.toISOString() },
     ]);
 
     const token = await createSessionToken({

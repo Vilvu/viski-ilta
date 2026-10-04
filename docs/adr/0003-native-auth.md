@@ -50,7 +50,9 @@ atomic and case-insensitive: a duplicate `create` returns a Cosmos 409.
 
 Login returns a generic "Invalid username or password" for both an unknown user and a wrong password, and still
 runs a bcrypt compare for unknown users so the timing doesn't reveal which. After 5 consecutive failures the
-account locks for 15 minutes (HTTP 429). `SameSite=Strict` plus JSON-only request bodies covers CSRF.
+account locks for 15 minutes (HTTP 429). Wrong current passwords on `POST /api/auth/change-password` count
+toward the same lockout, and that endpoint also rejects a temporary password once it has expired, even from a
+session that is still valid. `SameSite=Strict` plus JSON-only request bodies covers CSRF.
 
 ## Consequences
 

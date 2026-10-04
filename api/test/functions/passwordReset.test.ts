@@ -388,3 +388,82 @@ describe('existing sessions', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('change-password has the same protections as sign-in', () => {
+  async function aliceSession() {
+    await registerAlice();
+    return sessionToken(await signIn('alice', 'original-pass'));
+  }
+
+  const attempt = (token: string, currentPassword: string) =>
+    changePassword(
+      withSession(token, { currentPassword, newPassword: 'attacker-pass' }),
+      ctx,
+    );
+
+  it('rejects an expired temporary password from a still-valid restricted session', async () => {
+    const userId = await registerAlice();
+    const { temporaryPassword: temp } = (
+      readJson(await resetAs(admin, userId)).data as {
+        data: { temporaryPassword: string };
+      }
+    ).data;
+    const restricted = sessionToken(await signIn('alice', temp));
+
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 25 * 3_600_000);
+
+    const res = await changePassword(
+      withSession(restricted, {
+        currentPassword: temp,
+        newPassword: 'brand-new-pass',
+      }),
+      ctx,
+    );
+    expect(readJson(res)).toMatchObject({
+      status: 401,
+      data: { message: expect.stringMatching(/expired/i) },
+    });
+    expect(res.cookies).toEqual([
+      expect.objectContaining({ name: SESSION_COOKIE, maxAge: 0 }),
+    ]);
+    expect(await credentials()).toMatchObject({ mustChangePassword: true });
+    expect((await signIn('alice', 'brand-new-pass')).status).toBe(401);
+  });
+
+  it('counts wrong current passwords and locks after 5', async () => {
+    const token = await aliceSession();
+    for (let i = 1; i <= 4; i++) {
+      expect((await attempt(token, `wrong-${i}`)).status).toBe(400);
+    }
+    expect((await credentials()).failedAttempts).toBe(4);
+
+    expect((await attempt(token, 'wrong-5')).status).toBe(429);
+    expect((await credentials()).lockedUntil).not.toBeNull();
+
+    // Even the right password is refused while locked, and nothing changes.
+    expect((await attempt(token, 'original-pass')).status).toBe(429);
+    expect((await signIn('alice', 'attacker-pass')).status).toBe(429);
+  });
+
+  it('shares the lockout with sign-in', async () => {
+    const token = await aliceSession();
+    for (let i = 0; i < 5; i++) await signIn('alice', 'wrong-password');
+
+    expect((await attempt(token, 'original-pass')).status).toBe(429);
+  });
+
+  it('works again once the lockout window has passed', async () => {
+    const token = await aliceSession();
+    for (let i = 0; i < 5; i++) await attempt(token, `wrong-${i}`);
+
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 16 * 60_000);
+
+    expect((await attempt(token, 'original-pass')).status).toBe(204);
+    expect(await credentials()).toMatchObject({
+      failedAttempts: 0,
+      lockedUntil: null,
+    });
+  });
+});

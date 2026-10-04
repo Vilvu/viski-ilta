@@ -154,6 +154,48 @@ describe('ChangePasswordPage', () => {
     );
   });
 
+  it('explains a lockout after too many wrong current passwords', async () => {
+    mockSession(false);
+    server.use(
+      http.post('/api/auth/change-password', () =>
+        HttpResponse.json(
+          { message: 'Too many failed sign-in attempts. Try again later.' },
+          { status: 429 },
+        ),
+      ),
+    );
+    renderPage();
+
+    await fill('wrong-password', 'brand-new-pass');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /too many failed attempts/i,
+    );
+  });
+
+  it('explains an expired temporary password instead of redirecting', async () => {
+    mockSession(true);
+    server.use(
+      http.post('/api/auth/change-password', () =>
+        HttpResponse.json(
+          {
+            message:
+              'Temporary password has expired. Ask an admin to reset it again.',
+          },
+          { status: 401 },
+        ),
+      ),
+    );
+    renderPage();
+
+    await fill('Temp1234abcd', 'brand-new-pass');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /temporary password has expired/i,
+    );
+    expect(assign).not.toHaveBeenCalled();
+  });
+
   it('sends the user to sign in if their session is gone', async () => {
     mockSession(false);
     server.use(

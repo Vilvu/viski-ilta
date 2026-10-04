@@ -46,17 +46,24 @@ export default function ChangePasswordPage() {
       // Full reload so identity picks up the new, unrestricted session.
       window.location.assign('/');
     } catch (err) {
-      const status = (err as { response?: { status?: number } })?.response
-        ?.status;
-      if (status === 401) {
+      const response = (
+        err as { response?: { status?: number; data?: { message?: string } } }
+      )?.response;
+      const status = response?.status;
+      const expired = /expired/i.test(response?.data?.message ?? '');
+      if (status === 401 && !expired) {
         window.location.assign('/login');
         return;
       }
       setError(
         t(
-          status === 400
-            ? 'auth.errors.currentPasswordIncorrect'
-            : 'auth.errors.generic',
+          expired
+            ? 'auth.errors.tempPasswordExpired'
+            : status === 429
+              ? 'auth.errors.locked'
+              : status === 400
+                ? 'auth.errors.currentPasswordIncorrect'
+                : 'auth.errors.generic',
         ),
       );
       setSubmitting(false);
