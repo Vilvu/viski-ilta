@@ -16,6 +16,7 @@ import {
   updateMe,
   listUsers,
   setUserRole,
+  deleteUser,
 } from '../../src/functions/users';
 
 const TASTER_ID = 'taster1';
@@ -297,5 +298,116 @@ describe('PUT /users/{id}/role', () => {
     );
     expect(readJson(res).status).toBe(500);
     replaceSpy.mockRestore();
+  });
+});
+
+describe('DELETE /users/{id}', () => {
+  const LOCAL_ID = 'local:abc';
+
+  beforeEach(() => {
+    const base = { usernameConfirmed: true, createdAt: '', updatedAt: '' };
+    fakeCosmos.seed('users', [
+      {
+        ...base,
+        id: ADMIN_ID,
+        displayName: 'Admin',
+        email: 'a@x',
+        role: 'admin',
+      },
+      {
+        ...base,
+        id: TASTER_ID,
+        displayName: 'Taster',
+        email: 't@x',
+        role: 'taster',
+      },
+      {
+        ...base,
+        id: LOCAL_ID,
+        displayName: 'Alice',
+        email: '',
+        role: 'taster',
+        authProvider: 'local',
+      },
+    ]);
+    fakeCosmos.seed('credentials', [
+      {
+        id: 'alice',
+        username: 'Alice',
+        userId: LOCAL_ID,
+        passwordHash: 'hash',
+        failedAttempts: 0,
+        lockedUntil: null,
+      },
+    ]);
+    fakeCosmos.seed('ratings', [
+      {
+        id: 'r1',
+        eventId: 'e1',
+        whiskeyId: 'w1',
+        userId: LOCAL_ID,
+        userName: 'Alice',
+        score: 8,
+      },
+    ]);
+  });
+
+  const admin = makePrincipal({ userId: ADMIN_ID });
+
+  async function remove(id: string, principal = admin) {
+    return deleteUser(
+      makeRequest({ principal, params: { id } }),
+      makeContext(),
+    );
+  }
+
+  async function exists(container: string, id: string, pk = id) {
+    const { resource } = await fakeCosmos
+      .getContainer(container)
+      .item(id, pk)
+      .read();
+    return resource !== undefined;
+  }
+
+  it('removes an Entra ID user profile', async () => {
+    const res = await remove(TASTER_ID);
+    expect(res.status).toBe(204);
+    expect(await exists('users', TASTER_ID)).toBe(false);
+  });
+
+  it('removes a native user and their credentials but keeps their ratings', async () => {
+    const res = await remove(LOCAL_ID);
+    expect(res.status).toBe(204);
+    expect(await exists('users', LOCAL_ID)).toBe(false);
+    expect(await exists('credentials', 'alice')).toBe(false);
+    expect(await exists('ratings', 'r1', 'e1')).toBe(true);
+  });
+
+  it('refuses to let an admin remove themselves', async () => {
+    const res = await remove(ADMIN_ID);
+    expect(readJson(res)).toMatchObject({
+      status: 400,
+      data: { message: 'You cannot remove your own account' },
+    });
+    expect(await exists('users', ADMIN_ID)).toBe(true);
+  });
+
+  it('returns 404 for an unknown user', async () => {
+    const res = await remove('nobody');
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects a non-admin caller', async () => {
+    const res = await remove(LOCAL_ID, makePrincipal({ userId: TASTER_ID }));
+    expect(res.status).toBe(403);
+    expect(await exists('users', LOCAL_ID)).toBe(true);
+  });
+
+  it('rejects an unauthenticated caller', async () => {
+    const res = await deleteUser(
+      makeRequest({ params: { id: LOCAL_ID } }),
+      makeContext(),
+    );
+    expect(res.status).toBe(401);
   });
 });

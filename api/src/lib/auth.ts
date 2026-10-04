@@ -110,6 +110,12 @@ export async function ensureUser(
       .read();
 
     if (!resource) {
+      // Native accounts are only ever created by POST /api/auth/register.
+      // A missing profile means the account was removed, so a still-valid
+      // session cookie must not resurrect it.
+      if (principal.identityProvider === LOCAL_PROVIDER) {
+        throw { statusCode: 401, message: 'Account no longer exists' };
+      }
       const profile: UserProfile = {
         id: principal.userId,
         displayName: getUserName(principal),

@@ -174,10 +174,16 @@
     "updateFailed": "Failed to update role",
     "cannotChangeSelf": "You cannot change your own role",
     "confirmRoleChange": "Change this user's role to {{role}}?",
+    "remove": "Remove",
+    "removeUser": "Remove {{name}}",
+    "removeFailed": "Failed to remove user",
+    "cannotRemoveSelf": "You cannot remove yourself",
+    "confirmRemove": "Remove {{name}} from the application? Their ratings are kept. They can sign up or sign in again later, but will start without any access.",
     "columns": {
       "email": "Email",
       "displayName": "Display Name",
-      "role": "Role"
+      "role": "Role",
+      "actions": "Actions"
     },
     "roles": {
       "anonymous": "Anonymous",

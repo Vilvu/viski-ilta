@@ -5,7 +5,7 @@ import { server } from '../test/server';
 import { createTestQueryClient } from '../test/renderWithProviders';
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useAdminUsers, useSetUserRole } from './useAdminUsers';
+import { useAdminUsers, useSetUserRole, useDeleteUser } from './useAdminUsers';
 
 function makeWrapper() {
   const queryClient = createTestQueryClient();
@@ -61,5 +61,21 @@ describe('useSetUserRole', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['adminUsers'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['userProfile'] });
+  });
+});
+
+describe('useDeleteUser', () => {
+  it('invalidates the adminUsers query on success', async () => {
+    server.use(
+      http.delete(
+        '/api/users/u1',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    const { wrapper, invalidateSpy } = makeWrapper();
+    const { result } = renderHook(() => useDeleteUser(), { wrapper });
+    result.current.mutate('u1');
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['adminUsers'] });
   });
 });

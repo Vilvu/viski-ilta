@@ -59,7 +59,11 @@ account locks for 15 minutes (HTTP 429). `SameSite=Strict` plus JSON-only reques
 - A native account and an Entra account belonging to the same person are separate users. There is no account
   linking.
 - No password reset or email recovery in this iteration, since native accounts have no email. An admin can
-  delete the `credentials` and `users` documents so the person can re-register.
+  remove the user in User Management (`DELETE /api/users/{id}`), which deletes their `credentials` and `users`
+  documents so the person can re-register.
+- A removed native user's session cookie stays cryptographically valid until it expires, so `ensureUser` never
+  auto-provisions a `local` principal (it returns 401 instead), and `GET /api/auth/me` reports such a session as
+  signed out and clears the cookie.
 - Sessions are stateless JWTs, so one can't be revoked before it expires except by rotating
   `AUTH_SESSION_SECRET`, which signs out all native users.
 - Moving to SWA Standard (custom OIDC) or Entra External ID later remains possible. `resolvePrincipal` is the

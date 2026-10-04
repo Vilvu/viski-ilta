@@ -257,6 +257,8 @@ api/
 │   │   └── users.ts       — GET/PUT /api/users/me (profile: displayName, email, role)
 │   │                        GET /api/users (admin-only, list all)
 │   │                        PUT /api/users/:id/role (admin-only, assign role)
+│   │                        DELETE /api/users/:id (admin-only, remove user;
+│   │                          ratings/whiskeys kept, native credentials deleted)
 │   └── lib/
 │       ├── cosmos.ts      — getContainer() — routes to mock or real Cosmos DB
 │       ├── cosmos.mock.ts — MockContainer + seed data (incl. a seeded mock admin user)

@@ -375,7 +375,14 @@ needed locally.
 | `taster` | Rate whiskeys; create/manage own events and whiskeys | Assigned by an admin via `/admin/users` |
 | `admin` | Full access — manage events/whiskeys and all users' roles | Assigned by an admin via `/admin/users`; first admin requires manual DB seed (see 4.2) |
 
-### 4.4 Verify Role Assignment
+### 4.4 Removing a User
+
+Admins can remove a user from **User Management** with the **Remove** button (admins can't remove themselves).
+This deletes the user's profile and, for a username/password account, their credentials, so the username becomes
+free again. Their ratings and any whiskeys they added are kept. A removed Microsoft user who signs in again starts
+over as a new `anonymous` user, and a removed username/password user can register again.
+
+### 4.5 Verify Role Assignment
 
 A signed-in user can check their current app role via:
 ```
