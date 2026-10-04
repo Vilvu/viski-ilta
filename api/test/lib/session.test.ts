@@ -5,6 +5,7 @@ import {
   createSessionToken,
   verifySessionToken,
   getSessionPrincipal,
+  readSession,
   sessionCookie,
   clearedSessionCookie,
   isSessionConfigured,
@@ -31,6 +32,19 @@ describe('session tokens', () => {
     await expect(verifySessionToken(token)).resolves.toEqual({
       userId: 'local:1',
       username: 'Alice',
+    });
+  });
+
+  it('round-trips the must-change-password flag', async () => {
+    const token = await createSessionToken({
+      userId: 'local:1',
+      username: 'Alice',
+      mustChangePassword: true,
+    });
+    await expect(verifySessionToken(token)).resolves.toEqual({
+      userId: 'local:1',
+      username: 'Alice',
+      mustChangePassword: true,
     });
   });
 
@@ -105,6 +119,21 @@ describe('getSessionPrincipal', () => {
       identityProvider: 'local',
       userDetails: 'Alice',
     });
+  });
+});
+
+describe('restricted (must-change-password) sessions', () => {
+  it('readSession returns them but getSessionPrincipal does not', async () => {
+    const token = await createSessionToken({
+      userId: 'local:1',
+      username: 'Alice',
+      mustChangePassword: true,
+    });
+    const req = makeRequest({ cookies: { [SESSION_COOKIE]: token } });
+    await expect(readSession(req)).resolves.toMatchObject({
+      mustChangePassword: true,
+    });
+    await expect(getSessionPrincipal(req)).resolves.toBeNull();
   });
 });
 

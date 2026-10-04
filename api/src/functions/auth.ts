@@ -11,10 +11,16 @@ import { UserProfile } from '../lib/auth';
 import {
   clearedSessionCookie,
   createSessionToken,
-  getSessionPrincipal,
   isSessionConfigured,
+  principalFromClaims,
+  readSession,
   sessionCookie,
 } from '../lib/session';
+import {
+  BCRYPT_ROUNDS,
+  hashPassword,
+  validatePassword,
+} from '../lib/passwords';
 import {
   ok,
   created,
@@ -39,18 +45,21 @@ export interface Credentials {
   passwordHash: string;
   failedAttempts: number;
   lockedUntil: string | null;
+  // Set when an admin resets the password: the current password is a
+  // temporary one that expires at tempPasswordExpiresAt and must be
+  // replaced on the next sign-in.
+  mustChangePassword?: boolean;
+  tempPasswordExpiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-const BCRYPT_ROUNDS = 10;
 export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_MINUTES = 15;
 const USERNAME_PATTERN = /^[A-Za-z0-9_.-]{3,32}$/;
-const MIN_PASSWORD_LENGTH = 8;
-// bcrypt silently ignores input past 72 bytes.
-const MAX_PASSWORD_BYTES = 72;
 const INVALID_CREDENTIALS = 'Invalid username or password';
+const TEMP_PASSWORD_EXPIRED =
+  'Temporary password has expired. Ask an admin to reset it again.';
 
 // Compared against when the username doesn't exist, so a login attempt for
 // an unknown user takes as long as one for a real user.
@@ -59,16 +68,6 @@ const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS);
 function validateUsername(username: unknown): string | null {
   if (typeof username !== 'string' || !USERNAME_PATTERN.test(username)) {
     return 'Username must be 3-32 characters: letters, numbers, ".", "_" or "-"';
-  }
-  return null;
-}
-
-function validatePassword(password: unknown): string | null {
-  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
-    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
-  }
-  if (Buffer.byteLength(password, 'utf-8') > MAX_PASSWORD_BYTES) {
-    return `Password must be at most ${MAX_PASSWORD_BYTES} bytes`;
   }
   return null;
 }
@@ -135,7 +134,7 @@ export async function register(
       id: name.toLowerCase(),
       username: name,
       userId,
-      passwordHash: await bcrypt.hash(password as string, BCRYPT_ROUNDS),
+      passwordHash: await hashPassword(password as string),
       failedAttempts: 0,
       lockedUntil: null,
       createdAt: now,
@@ -237,6 +236,14 @@ export async function login(
       return locked ? tooManyAttempts() : unauthorized(INVALID_CREDENTIALS);
     }
 
+    if (
+      credentials.mustChangePassword &&
+      (!credentials.tempPasswordExpiresAt ||
+        new Date(credentials.tempPasswordExpiresAt) <= now)
+    ) {
+      return unauthorized(TEMP_PASSWORD_EXPIRED);
+    }
+
     if (credentials.failedAttempts || credentials.lockedUntil) {
       await container.item(id, id).patch([
         { op: 'set', path: '/failedAttempts', value: 0 },
@@ -252,12 +259,17 @@ export async function login(
       return unauthorized(INVALID_CREDENTIALS);
     }
 
+    const mustChangePassword = credentials.mustChangePassword === true;
     const token = await createSessionToken({
       userId: credentials.userId,
       username: credentials.username,
+      mustChangePassword,
     });
     return {
-      ...ok(profileResponse(profile as UserProfile)),
+      ...ok({
+        ...profileResponse(profile as UserProfile),
+        mustChangePassword,
+      }),
       cookies: [sessionCookie(token)],
     };
   } catch (error) {
@@ -279,7 +291,8 @@ export async function getSession(
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    let clientPrincipal = await getSessionPrincipal(req);
+    const session = await readSession(req);
+    let clientPrincipal = session ? principalFromClaims(session) : null;
     let cookies;
     if (clientPrincipal) {
       // The session outlives the account if an admin removed the user:
@@ -298,9 +311,78 @@ export async function getSession(
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store',
       },
-      body: JSON.stringify({ clientPrincipal }),
+      body: JSON.stringify({
+        clientPrincipal,
+        mustChangePassword: clientPrincipal
+          ? session?.mustChangePassword === true
+          : false,
+      }),
       cookies,
     };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+// POST /api/auth/change-password
+// Works for any native session, including the restricted one issued after
+// signing in with a temporary password. Issues a fresh, unrestricted session.
+export async function changePassword(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const session = await readSession(req);
+    if (!session) return unauthorized();
+
+    let body: { currentPassword?: unknown; newPassword?: unknown } = {};
+    try {
+      body = ((await req.json()) ?? {}) as typeof body;
+    } catch {
+      // fall through to validation
+    }
+    const { currentPassword, newPassword } = body;
+    if (typeof currentPassword !== 'string') {
+      return badRequest('currentPassword is required');
+    }
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) return badRequest(passwordError);
+    if (newPassword === currentPassword) {
+      return badRequest('New password must be different from the current one');
+    }
+
+    const id = session.username.toLowerCase();
+    const container = getContainer('credentials');
+    const { resource } = await container.item(id, id).read();
+    const credentials = resource as Credentials | undefined;
+    // The session must still belong to this account (it may have been
+    // removed, or the username re-registered by someone else).
+    if (!credentials || credentials.userId !== session.userId) {
+      return { ...unauthorized(), cookies: [clearedSessionCookie()] };
+    }
+
+    if (!(await bcrypt.compare(currentPassword, credentials.passwordHash))) {
+      return badRequest('Current password is incorrect');
+    }
+
+    await container.item(id, id).patch([
+      {
+        op: 'set',
+        path: '/passwordHash',
+        value: await hashPassword(newPassword as string),
+      },
+      { op: 'set', path: '/mustChangePassword', value: false },
+      { op: 'set', path: '/tempPasswordExpiresAt', value: null },
+      { op: 'set', path: '/failedAttempts', value: 0 },
+      { op: 'set', path: '/lockedUntil', value: null },
+      { op: 'set', path: '/updatedAt', value: new Date().toISOString() },
+    ]);
+
+    const token = await createSessionToken({
+      userId: credentials.userId,
+      username: credentials.username,
+    });
+    return { status: 204, cookies: [sessionCookie(token)] };
   } catch (error) {
     return handleError(error);
   }
@@ -332,4 +414,11 @@ app.http('authSession', {
   authLevel: 'anonymous',
   route: 'auth/me',
   handler: getSession,
+});
+
+app.http('authChangePassword', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'auth/change-password',
+  handler: changePassword,
 });

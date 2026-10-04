@@ -6,6 +6,11 @@ import {
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
 import {
+  generateTemporaryPassword,
+  hashPassword,
+  TEMP_PASSWORD_TTL_HOURS,
+} from '../lib/passwords';
+import {
   requireAuth,
   requireAdmin,
   ensureUser,
@@ -116,6 +121,7 @@ export async function listUsers(
       email: u.email,
       displayName: u.displayName,
       role: u.role,
+      authProvider: u.authProvider === 'local' ? 'local' : 'aad',
     }));
 
     return ok(users);
@@ -265,6 +271,65 @@ export async function deleteUser(
   }
 }
 
+// POST /api/users/{id}/reset-password (admin-only)
+// Replaces a native account's password with a random temporary one that
+// expires after TEMP_PASSWORD_TTL_HOURS and must be changed at next sign-in.
+// The temporary password is returned once, in this response only.
+export async function resetUserPassword(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const { principal } = await requireAdmin(req);
+    const { id } = req.params;
+
+    if (id === principal.userId) {
+      return badRequest('Use Change password to change your own password');
+    }
+
+    const container = getContainer('credentials');
+    const { resources } = await container.items
+      .query({
+        query: 'SELECT c.id FROM c WHERE c.userId = @userId',
+        parameters: [{ name: '@userId', value: id }],
+      })
+      .fetchAll();
+    const credentialsId = (resources as { id: string }[])[0]?.id;
+    if (!credentialsId) {
+      // Entra ID users have no password here; their sign-in is Microsoft's.
+      return notFound('No username/password account found for this user');
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + TEMP_PASSWORD_TTL_HOURS * 3_600_000,
+    ).toISOString();
+
+    await container.item(credentialsId, credentialsId).patch([
+      {
+        op: 'set',
+        path: '/passwordHash',
+        value: await hashPassword(temporaryPassword),
+      },
+      { op: 'set', path: '/mustChangePassword', value: true },
+      { op: 'set', path: '/tempPasswordExpiresAt', value: expiresAt },
+      // A reset is often the fix for a locked-out user.
+      { op: 'set', path: '/failedAttempts', value: 0 },
+      { op: 'set', path: '/lockedUntil', value: null },
+      { op: 'set', path: '/updatedAt', value: now.toISOString() },
+    ]);
+
+    const response = ok({ temporaryPassword, expiresAt });
+    return {
+      ...response,
+      headers: { ...response.headers, 'Cache-Control': 'no-store' },
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 app.http('getMe', {
   methods: ['GET'],
   authLevel: 'anonymous',
@@ -298,4 +363,11 @@ app.http('deleteUser', {
   authLevel: 'anonymous',
   route: 'users/{id}',
   handler: deleteUser,
+});
+
+app.http('resetUserPassword', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'users/{id}/reset-password',
+  handler: resetUserPassword,
 });

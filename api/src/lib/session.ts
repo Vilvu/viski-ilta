@@ -31,6 +31,10 @@ export function isSessionConfigured(): boolean {
 export interface SessionClaims {
   userId: string;
   username: string;
+  // Set after signing in with an admin-issued temporary password. Such a
+  // session can only change the password (POST /api/auth/change-password);
+  // getSessionPrincipal ignores it, so every other endpoint sees no user.
+  mustChangePassword?: boolean;
 }
 
 export async function createSessionToken(
@@ -40,7 +44,10 @@ export async function createSessionToken(
   if (!secret) {
     throw new Error('AUTH_SESSION_SECRET is not configured');
   }
-  return new SignJWT({ name: claims.username })
+  const payload = claims.mustChangePassword
+    ? { name: claims.username, pwc: true }
+    : { name: claims.username };
+  return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(claims.userId)
     .setIssuer(ISSUER)
@@ -64,7 +71,11 @@ export async function verifySessionToken(
     if (typeof payload.sub !== 'string' || typeof payload.name !== 'string') {
       return null;
     }
-    return { userId: payload.sub, username: payload.name };
+    return {
+      userId: payload.sub,
+      username: payload.name,
+      ...(payload.pwc === true && { mustChangePassword: true }),
+    };
   } catch {
     return null;
   }
@@ -104,16 +115,30 @@ export function principalFromClaims(claims: SessionClaims): ClientPrincipal {
   };
 }
 
-/** Resolves a native-account principal from the session cookie, if any. */
-export async function getSessionPrincipal(
+/**
+ * Reads the session cookie, including restricted (must-change-password)
+ * sessions. Only the auth endpoints should use this directly.
+ */
+export async function readSession(
   request: HttpRequest,
-): Promise<ClientPrincipal | null> {
+): Promise<SessionClaims | null> {
   const header = request.headers.get('cookie');
   if (!header) return null;
 
   const token = parseCookies(header)[SESSION_COOKIE];
   if (!token) return null;
 
-  const claims = await verifySessionToken(token);
-  return claims ? principalFromClaims(claims) : null;
+  return verifySessionToken(token);
+}
+
+/**
+ * Resolves a native-account principal from the session cookie, if any.
+ * Restricted sessions that must change their password resolve to null.
+ */
+export async function getSessionPrincipal(
+  request: HttpRequest,
+): Promise<ClientPrincipal | null> {
+  const claims = await readSession(request);
+  if (!claims || claims.mustChangePassword) return null;
+  return principalFromClaims(claims);
 }
