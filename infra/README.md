@@ -9,6 +9,7 @@ infra/
 ├── main.bicep                    # Subscription-scoped entry point, creates RG + calls modules
 ├── modules/
 │   ├── cosmosdb.bicep            # Cosmos DB account, DB, 4 containers
+│   ├── storage.bicep             # Storage account + private whiskey-images container (bottle photos)
 │   └── staticwebapp.bicep        # SWA resource + app settings
 ├── parameters/
 │   ├── dev.bicepparam
@@ -108,6 +109,16 @@ infra/
 
 - `AZURE_CREDENTIALS` - Service principal JSON from step 1
 - `COSMOS_KEY` - Cosmos DB primary key (retrieved in step 3)
+- `ANTHROPIC_API_KEY` - Optional. Anthropic API key that enables AI bottle recognition. When the secret is
+  missing the app still works and the "Recognize with AI" button reports that it is not configured.
+
+The storage account for bottle photos needs no secret: `staticwebapp.bicep` reads its key and sets
+`BLOB_STORAGE_CONNECTION_STRING` in the SWA app settings. The `storageAccountName` in each parameter file must be
+globally unique (3–24 lowercase letters and digits).
+
+> **Note:** the SWA app settings resource replaces the whole settings set on every deploy. Always deploy with
+> both `cosmosKey` and `anthropicApiKey` (the Infra Deploy workflow does this), or a manual deploy without
+> `anthropicApiKey` will remove a previously configured `ANTHROPIC_API_KEY`.
 
 ## GitHub Environments Setup
 

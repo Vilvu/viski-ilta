@@ -14,12 +14,15 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Secrets (AZURE_CREDENTIALS, COSMOS_KEY, ANTHROPIC_API_KEY) are environment-scoped;
+    # without this they resolve to empty strings.
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Azure Login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -30,4 +33,5 @@ jobs:
             --location northeurope \
             --template-file infra/main.bicep \
             --parameters infra/parameters/${{ inputs.environment }}.bicepparam \
-            --parameters cosmosKey=${{ secrets.COSMOS_KEY }}
+            --parameters cosmosKey=${{ secrets.COSMOS_KEY }} \
+            --parameters anthropicApiKey=${{ secrets.ANTHROPIC_API_KEY }}

@@ -14,8 +14,10 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@azure/cosmos": "4.1.1",
     "@azure/functions": "^4.5.0",
+    "@azure/storage-blob": "^12.34.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

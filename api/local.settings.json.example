@@ -6,6 +6,9 @@
     "COSMOS_ENDPOINT": "https://your-account.documents.azure.com:443/",
     "COSMOS_KEY": "your-cosmos-key",
     "COSMOS_DATABASE": "whiskyapp",
-    "USE_COSMOS_MOCK": "true"
+    "USE_COSMOS_MOCK": "true",
+    "BLOB_STORAGE_CONNECTION_STRING": "",
+    "USE_BLOB_MOCK": "true",
+    "ANTHROPIC_API_KEY": ""
   }
 }

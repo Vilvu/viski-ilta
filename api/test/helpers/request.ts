@@ -28,6 +28,8 @@ export interface MakeRequestOptions {
   params?: Record<string, string>;
   query?: Record<string, string>;
   body?: unknown;
+  /** Raw body bytes, returned by arrayBuffer() (for image uploads). */
+  rawBody?: Uint8Array;
   /** When set, adds the base64-encoded x-ms-client-principal header. */
   principal?: ClientPrincipal | null;
   /** Raw headers, merged with the principal header if both are given. */
@@ -56,6 +58,13 @@ export function makeRequest(options: MakeRequestOptions = {}): HttpRequest {
       get: (name: string) => headerMap.get(name.toLowerCase()) ?? null,
     },
     json: async () => options.body ?? {},
+    arrayBuffer: async () => {
+      const bytes = options.rawBody ?? new Uint8Array();
+      return bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength,
+      );
+    },
   } as unknown as HttpRequest;
 }
 
