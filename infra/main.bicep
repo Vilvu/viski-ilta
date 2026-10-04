@@ -9,6 +9,8 @@ param repositoryUrl string
 param repositoryBranch string
 @secure()
 param cosmosKey string = ''
+@secure()
+param authSessionSecret string = ''
 param environment string
 
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -43,6 +45,7 @@ module staticWebAppModule './modules/staticwebapp.bicep' = {
     cosmosEndpoint: cosmosDbModule.outputs.cosmosEndpoint
     cosmosKey: cosmosKey
     cosmosDatabase: 'whiskyapp'
+    authSessionSecret: authSessionSecret
   }
   dependsOn: [
     rg

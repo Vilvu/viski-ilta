@@ -6,6 +6,8 @@ param cosmosEndpoint string
 @secure()
 param cosmosKey string
 param cosmosDatabase string
+@secure()
+param authSessionSecret string
 
 resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
@@ -33,11 +35,14 @@ resource swa 'Microsoft.Web/staticSites@2023-01-01' = {
 resource appSettings 'Microsoft.Web/staticSites/config@2023-01-01' = if (!empty(cosmosKey)) {
   parent: swa
   name: 'appsettings'
-  properties: {
+  properties: union({
     COSMOS_ENDPOINT: cosmosEndpoint
     COSMOS_KEY: cosmosKey
     COSMOS_DATABASE: cosmosDatabase
-  }
+  }, empty(authSessionSecret) ? {} : {
+    // Signing key for native username/password session cookies.
+    AUTH_SESSION_SECRET: authSessionSecret
+  })
 }
 
 output swaDefaultHostname string = swa.properties.defaultHostname

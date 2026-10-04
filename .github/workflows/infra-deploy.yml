@@ -30,4 +30,5 @@ jobs:
             --location northeurope \
             --template-file infra/main.bicep \
             --parameters infra/parameters/${{ inputs.environment }}.bicepparam \
-            --parameters cosmosKey=${{ secrets.COSMOS_KEY }}
+            --parameters cosmosKey=${{ secrets.COSMOS_KEY }} \
+            --parameters authSessionSecret=${{ secrets.AUTH_SESSION_SECRET }}

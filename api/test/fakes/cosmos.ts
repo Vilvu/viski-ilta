@@ -60,6 +60,7 @@ const PARTITION_KEY_FIELD: Record<string, string> = {
   eventWhiskeys: 'eventId',
   ratings: 'eventId',
   users: 'id',
+  credentials: 'id',
 };
 
 function partitionKeyFieldFor(containerName: string): string {

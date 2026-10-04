@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from '@azure/functions';
 import { getContainer } from '../lib/cosmos';
-import { requireTaster, isAdmin, getClientPrincipal } from '../lib/auth';
+import { requireTaster, isAdmin, resolvePrincipal } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
 import { recomputeGlobalAggregate } from '../lib/aggregates';
 import { v4 as uuidv4 } from 'uuid';
@@ -353,7 +353,7 @@ export async function getEventWhiskeys(
 ): Promise<HttpResponseInit> {
   try {
     const { eventId } = req.params;
-    const principal = getClientPrincipal(req);
+    const principal = await resolvePrincipal(req);
     const eventWhiskeysContainer = getContainer('eventWhiskeys');
     const whiskeysContainer = getContainer('whiskeys');
 
