@@ -10,6 +10,7 @@ infra/
 ├── modules/
 │   ├── cosmosdb.bicep            # Cosmos DB account, DB, 4 containers
 │   ├── storage.bicep             # Storage account + private whiskey-images container (bottle photos)
+│   ├── signalr.bicep             # SignalR Service (Serverless, Free_F1) for real-time updates
 │   └── staticwebapp.bicep        # SWA resource + app settings
 ├── parameters/
 │   ├── dev.bicepparam
@@ -107,14 +108,34 @@ infra/
 
 ## Required GitHub Secrets
 
+**Convention:** a secret that configures a deployment target is an **environment secret** with the same name in
+`dev` and `prod`. Jobs select the environment with `environment:` (`infra-deploy.yml` uses
+`environment: ${{ inputs.environment }}`). A secret used by shared tooling that deploys nowhere is a
+**repository secret** with its own purpose-specific name, because jobs without `environment:` can't see
+environment secrets.
+
+Environment secrets (`dev` and `prod`):
+
 - `AZURE_CREDENTIALS` - Service principal JSON from step 1
 - `COSMOS_KEY` - Cosmos DB primary key (retrieved in step 3)
 - `ANTHROPIC_API_KEY` - Optional. Anthropic API key that enables AI bottle recognition. When the secret is
   missing the app still works and the "Recognize with AI" button reports that it is not configured.
 
+Repository secrets:
+
+- `CLAUDE_REVIEW_API_KEY` - Anthropic API key for the Claude Code Review workflow (`claude-code-review.yml`) on PRs.
+  Preferably a separate key, with a spend limit, from the app's `ANTHROPIC_API_KEY`. Without it the review
+  check fails. Fork PRs never receive secrets.
+
 The storage account for bottle photos needs no secret: `staticwebapp.bicep` reads its key and sets
 `BLOB_STORAGE_CONNECTION_STRING` in the SWA app settings. The `storageAccountName` in each parameter file must be
 globally unique (3–24 lowercase letters and digits).
+
+The SignalR Service for real-time updates needs no secret either: `staticwebapp.bicep` reads its connection string
+and sets `AzureSignalRConnectionString`. Azure allows only **one Free_F1 SignalR instance per subscription**, so
+SignalR is deployed to **prod only**. `prod.bicepparam` sets `enableSignalR = true` and a globally unique
+`signalrName`. In dev, `enableSignalR` defaults to `false`, so no SignalR resource is created, the app setting is
+left out, and dev runs without real-time updates (the app falls back to normal fetching).
 
 > **Note:** the SWA app settings resource replaces the whole settings set on every deploy. Always deploy with
 > both `cosmosKey` and `anthropicApiKey` (the Infra Deploy workflow does this), or a manual deploy without
@@ -151,6 +172,28 @@ After infrastructure deployment, the following steps must be completed manually:
 
 1. Configure Microsoft Entra ID identity provider on SWA (pre-configured provider - no additional setup needed for Free SKU)
 2. Assign admin roles via Azure Portal
+
+### Removing an existing SignalR instance from dev (one-time)
+
+ARM deployments are incremental, so redeploying dev with `enableSignalR = false` does **not** delete a SignalR
+instance that an earlier deployment created. Free up the Free_F1 slot by hand, **before** deploying prod:
+
+1. **Redeploy dev infra:** run Actions → *Infra Deploy* → `dev`. Because the SWA app-settings resource replaces
+   the whole set, this removes `AzureSignalRConnectionString` from dev. Dev then stops connecting to SignalR.
+   (Deleting the instance first is harmless too, but dev would point at a dead endpoint until the next deploy.)
+2. **Delete the dev instance:**
+   ```bash
+   az signalr delete --name signalr-whiskyapp-123-dev --resource-group rg-whiskyapp-dev
+   ```
+3. **Verify the subscription has no Free instance left:**
+   ```bash
+   az signalr list --query "[].{name:name, rg:resourceGroup, sku:sku.name}" -o table
+   ```
+4. **Deploy prod:** run *Infra Deploy* → `prod`, which creates `signalr-whiskyapp-123-prod` and sets its
+   connection string on the prod SWA.
+
+To try real-time in dev again later, set `param enableSignalR = true` and a `signalrName` in `dev.bicepparam`.
+Only one environment can use Free_F1 at a time; the other needs `signalrSku = 'Standard_S1'`.
 
 ## Parameter Files
 

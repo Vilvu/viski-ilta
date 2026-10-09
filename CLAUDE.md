@@ -92,6 +92,13 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
   `ratings` is partitioned by `/eventId`.
 - `lib/ai.ts`: Claude vision + web search restricted to `SEARCH_ALLOWED_DOMAINS`, with a ~40 s budget because
   SWA managed functions time out around 45 s. Returns 503 when `ANTHROPIC_API_KEY` is unset.
+- `lib/realtime.ts`: real-time via Azure SignalR Service (Serverless) over its **REST API**. SWA managed
+  functions only allow HTTP triggers, so no SignalR bindings are used. Every mutation handler calls
+  `await broadcast(target, ids)` after a successful write. Targets are `ratingsChanged`, `eventWhiskeysChanged`,
+  `eventsChanged` and `catalogChanged`; payloads are ids only, never data. `broadcast` never throws and is a
+  no-op when `AzureSignalRConnectionString` is unset. New mutations should broadcast too. SignalR is deployed
+  to prod only (`enableSignalR` in `infra/main.bicep`; one Free_F1 instance per subscription), so dev runs
+  without real-time.
 
 ### Cosmos containers (all created by `infra/modules/cosmosdb.bicep`)
 | Container | Partition key | Notes |
@@ -115,6 +122,8 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
 - `users/me`: GET, PUT; `users`: GET; `users/{id}/role`: PUT; `users/{id}`: DELETE (keeps ratings/whiskeys,
   admins cannot delete themselves); `users/{id}/reset-password`: POST (native accounts, 24 h temp password)
 - `auth/register`, `auth/login`, `auth/logout`, `auth/me`, `auth/change-password`; `health`
+- `negotiate`: POST, any signed-in user; returns raw `{ url, accessToken }` (no `{ data }` envelope) for the
+  `@microsoft/signalr` client, 503 when SignalR is not configured
 
 ### Frontend (`frontend/src`)
 - `@` alias → `src`. Routing in `App.tsx`; `ProtectedRoute` (exported as `TasterRoute`) and `AdminRoute`
@@ -128,6 +137,9 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
   routes to `/change-password`.
 - Photos: `components/WhiskeyImageField.tsx` (picker + "Recognize with AI"), `lib/image.ts` downscales to
   1280 px JPEG client-side, `lib/recognize.ts` fills only empty form fields from the AI result.
+- `hooks/useRealtime.ts` (mounted once in `Layout`) holds the SignalR connection while signed in. Its
+  `REALTIME_HANDLERS` map each server message to the TanStack Query keys to invalidate, mirroring the
+  mutations' `onSuccess`. A failed negotiate is swallowed, and the app falls back to normal fetching.
 - i18n via i18next, `fallbackLng: 'fi'`, language stored in `localStorage['lang']`. `i18n/locales.test.ts`
   enforces full key parity between `en.json` and `fi.json` and no empty strings, so every new string needs
   both files. CSS Modules for styling.
@@ -151,6 +163,8 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
   Never set `USE_COSMOS_MOCK` in tests.
 - `helpers/request.ts`: `makeRequest({ params, query, body, rawBody, principal, cookies, headers })`,
   `makeContext()`, `makePrincipal(overrides)`, `readJson(response)`. Call handlers directly.
+- `test/functions/broadcasts.test.ts` mocks `src/lib/realtime` and asserts each mutation's broadcast.
+  `test/lib/realtime.test.ts` stubs global `fetch`.
 - `test/lib/ai.test.ts` mocks `@anthropic-ai/sdk`; `test/functions/health.test.ts` mocks `@azure/cosmos`.
 - Coverage excludes `src/index.ts`, `src/polyfill.ts`, `src/lib/cosmos.mock.ts`. `cosmos.ts` itself is always
   mocked and has no direct coverage.
@@ -158,7 +172,8 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
 ### Frontend (colocated `*.test.ts(x)`)
 - `src/test/setup.ts`: jest-dom matchers, `matchMedia` and `Blob.prototype.stream` polyfills, MSW server with
   `onUnhandledRequest: 'error'` (an unstubbed request fails the test), RTL `cleanup`.
-- `src/test/handlers.ts` holds anonymous/empty defaults; override per test with `server.use(...)`.
+- `src/test/handlers.ts` holds anonymous/empty defaults (including `POST /api/negotiate` → 503, so real-time
+  is off in tests); override per test with `server.use(...)`.
 - `src/test/renderWithProviders.tsx` wraps in `MemoryRouter` + a fresh `QueryClient` (`retry: false`,
   `gcTime: 0`) and accepts `{ route, language }`.
 - Coverage deliberately excludes `App.tsx` and the presentational pages (`EventsPage`, `EventDetailPage`,
@@ -167,7 +182,9 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
 ## CI and deployment
 - `.github/workflows/ci.yml`: on every PR and on push to `main`/`dev`, runs lint, build/typecheck, test
   typecheck, and coverage-gated tests per package (API on Node 20, frontend on Node 22).
-- `claude-code-review.yml` runs an automated code review on non-draft PRs.
+- `claude-code-review.yml` runs an automated code review on non-draft PRs, using the **repository** secret
+  `CLAUDE_REVIEW_API_KEY`. Secrets convention: deployment config is environment-scoped (`dev`/`prod`, same names,
+  selected via `environment:`); shared tooling that deploys nowhere uses repository secrets.
 - `azure-static-web-apps-dev.yml` deploys on push to `dev`; `azure-static-web-apps.yml` (prod) and
   `infra-deploy.yml` (Bicep, `infra/`) are manual `workflow_dispatch`. Both SWA workflows build locally and
   upload `frontend/dist` + `api/` with app and API builds skipped.

@@ -7,6 +7,7 @@ import {
 import { getContainer } from '../lib/cosmos';
 import { requireTaster, isAdmin } from '../lib/auth';
 import { ok, created, noContent, notFound, handleError } from '../lib/response';
+import { broadcast } from '../lib/realtime';
 import { v4 as uuidv4 } from 'uuid';
 
 interface EventDocument {
@@ -72,6 +73,7 @@ export async function createEvent(
 
     const container = getContainer('events');
     const { resource } = await container.items.create(event);
+    await broadcast('eventsChanged', { eventId: event.id });
     return created(resource);
   } catch (error) {
     return handleError(error);
@@ -128,6 +130,7 @@ export async function updateEvent(
     const { resource: updatedResource } = await container
       .item(eventId, eventId)
       .replace(updated);
+    await broadcast('eventsChanged', { eventId });
     return ok(updatedResource);
   } catch (error) {
     return handleError(error);
@@ -159,6 +162,7 @@ export async function deleteEvent(
     }
 
     await container.item(eventId, eventId).delete();
+    await broadcast('eventsChanged', { eventId });
     return noContent();
   } catch (error) {
     return handleError(error);

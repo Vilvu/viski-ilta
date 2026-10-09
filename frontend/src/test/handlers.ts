@@ -24,4 +24,9 @@ export const handlers = [
   http.get('/api/events', () => HttpResponse.json({ data: [] })),
   http.get('/api/whiskeys', () => HttpResponse.json({ data: [] })),
   http.get('/api/users', () => HttpResponse.json({ data: [] })),
+
+  // Real-time is off by default in tests; useRealtime treats 503 as "unavailable".
+  http.post('/api/negotiate', () =>
+    HttpResponse.json({ error: 'Service Unavailable' }, { status: 503 }),
+  ),
 ];

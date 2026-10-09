@@ -3,6 +3,7 @@ import { Outlet, Link, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useRealtime } from '@/hooks/useRealtime';
 import UsernameSetupModal from './UsernameSetupModal';
 import EditDisplayNameModal from './EditDisplayNameModal';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -22,6 +23,8 @@ export default function Layout() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [setupDismissed, setSetupDismissed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useRealtime(isAuthenticated);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
