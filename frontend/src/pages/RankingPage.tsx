@@ -57,33 +57,32 @@ export default function RankingPage() {
                   <div className={styles.whiskeyInfo}>
                     <h3>{whiskey.name}</h3>
                     <p className={styles.whiskeyMeta}>
-                      {whiskey.distillery} · {whiskey.region}
-                      {whiskey.age ? ` · ${whiskey.age}yr` : ''}
-                      {whiskey.abv ? ` · ${whiskey.abv}%` : ''}
+                      {[
+                        whiskey.distillery,
+                        whiskey.region,
+                        whiskey.age ? `${whiskey.age}yr` : null,
+                        whiskey.abv ? `${whiskey.abv}%` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
-                  </div>
-                  <div className={styles.ratings}>
-                    <div className={styles.ratingBadge}>
-                      <span className={styles.ratingLabel}>
-                        {t('ranking.avgBadge')}
-                      </span>
-                      <span className={styles.ratingValue}>
-                        {whiskey.globalRatingCount > 0
-                          ? whiskey.globalAverageRating.toFixed(1)
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className={styles.ratingCount}>
-                      (
+                    {/* Under the details rather than the score, so the score
+                        column stays narrow on phones. */}
+                    <p className={styles.ratingCount}>
                       {t('ranking.ratingCount', {
                         count: whiskey.globalRatingCount,
-                        defaultValue:
-                          whiskey.globalRatingCount === 1
-                            ? `${whiskey.globalRatingCount} ${t('ranking.ratingCount_one')}`
-                            : `${whiskey.globalRatingCount} ${t('ranking.ratingCount_other')}`,
                       })}
-                      )
-                    </div>
+                    </p>
+                  </div>
+                  <div className={styles.ratingBadge}>
+                    <span className={styles.ratingLabel}>
+                      {t('ranking.avgBadge')}
+                    </span>
+                    <span className={styles.ratingValue}>
+                      {whiskey.globalRatingCount > 0
+                        ? whiskey.globalAverageRating.toFixed(1)
+                        : '—'}
+                    </span>
                   </div>
                 </>
               );
