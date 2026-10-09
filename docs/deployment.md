@@ -268,24 +268,25 @@ app-settings resource replaces all settings, so keep that secret populated whene
 
 ### 2.5 Azure SignalR Service (Real-time Updates)
 
-The Bicep templates in `infra/` create a SignalR Service in **Serverless** mode (`infra/modules/signalr.bicep`) and write its connection string into the SWA app setting `AzureSignalRConnectionString`. To do it by hand:
+Real-time updates use an Azure SignalR Service in **Serverless** mode (`infra/modules/signalr.bicep`). Bicep writes its connection string into the SWA app setting `AzureSignalRConnectionString`.
+
+- **Prod only.** Free_F1 allows 20 concurrent connections and 20,000 messages a day, and **only one Free instance is allowed per subscription**. So only `prod.bicepparam` sets `enableSignalR = true`. Dev deploys without SignalR and the app setting, and dev runs without live updates: it refreshes on refetch, as before.
+- **Moving the instance from dev to prod.** Bicep deployments are incremental, so they never delete an existing dev instance. Follow the one-time runbook in [`infra/README.md`](../infra/README.md#removing-an-existing-signalr-instance-from-dev-one-time) before the first prod deploy: redeploy dev, `az signalr delete` the dev instance, then deploy prod.
+- To create it by hand instead of with Bicep:
 
 ```bash
 az signalr create \
-  --name signalr-whiskyapp-123-dev \
-  --resource-group rg-whiskyapp-dev \
+  --name signalr-whiskyapp-123-prod \
+  --resource-group rg-whiskyapp-prd \
   --sku Free_F1 \
   --service-mode Serverless
 
 az staticwebapp appsettings set \
-  --name swa-whiskyapp-dev \
+  --name swa-whiskyapp-prod \
   --setting-names AzureSignalRConnectionString="$(az signalr key list \
-    --name signalr-whiskyapp-123-dev --resource-group rg-whiskyapp-dev \
+    --name signalr-whiskyapp-123-prod --resource-group rg-whiskyapp-prd \
     --query primaryConnectionString -o tsv)"
 ```
-
-- **Free_F1 limits**: 20 concurrent connections and 20,000 messages a day. **Only one Free instance is allowed per subscription.** If dev and prod share a subscription, set `signalrSku = 'Standard_S1'` in one of the `.bicepparam` files.
-- Real-time is optional. Without the setting, the app works as before and only refreshes on refetch.
 
 ---
 

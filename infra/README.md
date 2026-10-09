@@ -118,9 +118,10 @@ The storage account for bottle photos needs no secret: `staticwebapp.bicep` read
 globally unique (3–24 lowercase letters and digits).
 
 The SignalR Service for real-time updates needs no secret either: `staticwebapp.bicep` reads its connection string
-and sets `AzureSignalRConnectionString`. `signalrName` must be globally unique. The default `signalrSku` is
-`Free_F1`, and Azure allows only **one Free SignalR instance per subscription**. If dev and prod share a
-subscription, set `param signalrSku = 'Standard_S1'` in one parameter file.
+and sets `AzureSignalRConnectionString`. Azure allows only **one Free_F1 SignalR instance per subscription**, so
+SignalR is deployed to **prod only**. `prod.bicepparam` sets `enableSignalR = true` and a globally unique
+`signalrName`. In dev, `enableSignalR` defaults to `false`, so no SignalR resource is created, the app setting is
+left out, and dev runs without real-time updates (the app falls back to normal fetching).
 
 > **Note:** the SWA app settings resource replaces the whole settings set on every deploy. Always deploy with
 > both `cosmosKey` and `anthropicApiKey` (the Infra Deploy workflow does this), or a manual deploy without
@@ -157,6 +158,28 @@ After infrastructure deployment, the following steps must be completed manually:
 
 1. Configure Microsoft Entra ID identity provider on SWA (pre-configured provider - no additional setup needed for Free SKU)
 2. Assign admin roles via Azure Portal
+
+### Removing an existing SignalR instance from dev (one-time)
+
+ARM deployments are incremental, so redeploying dev with `enableSignalR = false` does **not** delete a SignalR
+instance that an earlier deployment created. Free up the Free_F1 slot by hand, **before** deploying prod:
+
+1. **Redeploy dev infra:** run Actions → *Infra Deploy* → `dev`. Because the SWA app-settings resource replaces
+   the whole set, this removes `AzureSignalRConnectionString` from dev. Dev then stops connecting to SignalR.
+   (Deleting the instance first is harmless too, but dev would point at a dead endpoint until the next deploy.)
+2. **Delete the dev instance:**
+   ```bash
+   az signalr delete --name signalr-whiskyapp-123-dev --resource-group rg-whiskyapp-dev
+   ```
+3. **Verify the subscription has no Free instance left:**
+   ```bash
+   az signalr list --query "[].{name:name, rg:resourceGroup, sku:sku.name}" -o table
+   ```
+4. **Deploy prod:** run *Infra Deploy* → `prod`, which creates `signalr-whiskyapp-123-prod` and sets its
+   connection string on the prod SWA.
+
+To try real-time in dev again later, set `param enableSignalR = true` and a `signalrName` in `dev.bicepparam`.
+Only one environment can use Free_F1 at a time; the other needs `signalrSku = 'Standard_S1'`.
 
 ## Parameter Files
 

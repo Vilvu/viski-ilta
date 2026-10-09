@@ -474,7 +474,6 @@ rg-whiskyapp-dev
 │   └── Built-in Auth        — Microsoft Entra ID
 ├── Azure Storage Account    — stwhiskyapp…dev
 │   └── Blob container: whiskey-images (private, bottle photos)
-├── Azure SignalR Service    — signalr-whiskyapp-123-dev (Free_F1, Serverless)
 └── Azure Cosmos DB Account  — cosmos-whiskyapp-dev
     └── Database: whiskyapp
         ├── Container: events         (pk: /id)
@@ -483,6 +482,9 @@ rg-whiskyapp-dev
         ├── Container: ratings        (pk: /eventId)
         ├── Container: users          (pk: /id)
         └── Container: credentials    (pk: /id = lowercased username)
+
+rg-whiskyapp-prd — same as dev, plus:
+└── Azure SignalR Service    — signalr-whiskyapp-123-prod (Free_F1, Serverless; prod only, see deployment §2.5)
 ```
 
 ### 7.2 Estimated Monthly Cost — MVP
@@ -493,7 +495,7 @@ rg-whiskyapp-dev
 | Azure Cosmos DB | Serverless | $0–2/month at MVP traffic |
 | Azure Blob Storage | Standard LRS, Hot | Cents per month for photos |
 | Anthropic Claude API | Pay per use, optional | A few cents per AI recognition |
-| Azure SignalR Service | Free_F1 (20 connections, 20k msgs/day) | $0 |
+| Azure SignalR Service (prod only) | Free_F1 (20 connections, 20k msgs/day) | $0 |
 | **Total** | | **$0–2/month** |
 
 ### 7.3 Environment Strategy

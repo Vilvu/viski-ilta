@@ -96,7 +96,9 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
   functions only allow HTTP triggers, so no SignalR bindings are used. Every mutation handler calls
   `await broadcast(target, ids)` after a successful write. Targets are `ratingsChanged`, `eventWhiskeysChanged`,
   `eventsChanged` and `catalogChanged`; payloads are ids only, never data. `broadcast` never throws and is a
-  no-op when `AzureSignalRConnectionString` is unset. New mutations should broadcast too.
+  no-op when `AzureSignalRConnectionString` is unset. New mutations should broadcast too. SignalR is deployed
+  to prod only (`enableSignalR` in `infra/main.bicep`; one Free_F1 instance per subscription), so dev runs
+  without real-time.
 
 ### Cosmos containers (all created by `infra/modules/cosmosdb.bicep`)
 | Container | Partition key | Notes |

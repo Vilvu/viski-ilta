@@ -8,8 +8,11 @@ param swaName string
 @maxLength(24)
 param storageAccountName string  // lowercase letters and digits, globally unique
 param swaLocation string = 'westeurope'  // SWA has limited regions, westeurope is a valid one
-param signalrName string  // globally unique
-// Only one Free_F1 SignalR instance is allowed per subscription.
+// Real-time updates (Azure SignalR Service). Only one Free_F1 instance is
+// allowed per subscription, so it is enabled in prod only; without it the app
+// falls back to normal fetching.
+param enableSignalR bool = false
+param signalrName string = ''  // globally unique; required when enableSignalR
 @allowed([
   'Free_F1'
   'Standard_S1'
@@ -59,7 +62,7 @@ module storageModule './modules/storage.bicep' = {
   ]
 }
 
-module signalrModule './modules/signalr.bicep' = {
+module signalrModule './modules/signalr.bicep' = if (enableSignalR) {
   name: 'signalrModule'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -87,7 +90,7 @@ module staticWebAppModule './modules/staticwebapp.bicep' = {
     storageAccountName: storageModule.outputs.storageAccountName
     anthropicApiKey: anthropicApiKey
     authSessionSecret: authSessionSecret
-    signalrName: signalrModule.outputs.signalrName
+    signalrName: enableSignalR ? signalrModule!.outputs.signalrName : ''
   }
   dependsOn: [
     rg
