@@ -182,7 +182,9 @@ Prettier (`.prettierrc`: single quotes, trailing commas, 80 cols) is enforced th
 ## CI and deployment
 - `.github/workflows/ci.yml`: on every PR and on push to `main`/`dev`, runs lint, build/typecheck, test
   typecheck, and coverage-gated tests per package (API on Node 20, frontend on Node 22).
-- `claude-code-review.yml` runs an automated code review on non-draft PRs.
+- `claude-code-review.yml` runs an automated code review on non-draft PRs, using the **repository** secret
+  `CLAUDE_REVIEW_API_KEY`. Secrets convention: deployment config is environment-scoped (`dev`/`prod`, same names,
+  selected via `environment:`); shared tooling that deploys nowhere uses repository secrets.
 - `azure-static-web-apps-dev.yml` deploys on push to `dev`; `azure-static-web-apps.yml` (prod) and
   `infra-deploy.yml` (Bicep, `infra/`) are manual `workflow_dispatch`. Both SWA workflows build locally and
   upload `frontend/dist` + `api/` with app and API builds skipped.

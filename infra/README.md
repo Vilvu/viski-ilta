@@ -108,10 +108,24 @@ infra/
 
 ## Required GitHub Secrets
 
+**Convention:** a secret that configures a deployment target is an **environment secret** with the same name in
+`dev` and `prod`. Jobs select the environment with `environment:` (`infra-deploy.yml` uses
+`environment: ${{ inputs.environment }}`). A secret used by shared tooling that deploys nowhere is a
+**repository secret** with its own purpose-specific name, because jobs without `environment:` can't see
+environment secrets.
+
+Environment secrets (`dev` and `prod`):
+
 - `AZURE_CREDENTIALS` - Service principal JSON from step 1
 - `COSMOS_KEY` - Cosmos DB primary key (retrieved in step 3)
 - `ANTHROPIC_API_KEY` - Optional. Anthropic API key that enables AI bottle recognition. When the secret is
   missing the app still works and the "Recognize with AI" button reports that it is not configured.
+
+Repository secrets:
+
+- `CLAUDE_REVIEW_API_KEY` - Anthropic API key for the Claude Code Review workflow (`claude-code-review.yml`) on PRs.
+  Preferably a separate key, with a spend limit, from the app's `ANTHROPIC_API_KEY`. Without it the review
+  check fails. Fork PRs never receive secrets.
 
 The storage account for bottle photos needs no secret: `staticwebapp.bicep` reads its key and sets
 `BLOB_STORAGE_CONNECTION_STRING` in the SWA app settings. The `storageAccountName` in each parameter file must be
